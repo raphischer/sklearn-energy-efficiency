@@ -20,6 +20,10 @@ class PatchedJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, np.float32):
             return float(obj)
+        if isinstance(obj, np.int32):
+            return int(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
         return json.JSONEncoder.default(self, obj)
 
 
@@ -31,7 +35,9 @@ def fix_seed(seed):
     return seed
 
 
-def create_output_dir(dir, config=None):
+def create_output_dir(dir=None, config=None):
+    if dir is None:
+        dir = os.path.join(os.getcwd(), '')
     # create log dir
     timestamp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
     dir = f'{dir}_{timestamp}'
