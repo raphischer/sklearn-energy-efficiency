@@ -3,6 +3,7 @@ import os
 import json
 
 import numpy as np
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn import datasets
@@ -11,9 +12,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, ExtraTreesClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+from sklearn import preprocessing
 from scipy.stats import uniform
 
 from mlee.util import create_output_dir, PatchedJSONEncoder
@@ -25,11 +27,11 @@ from mlee.util import create_output_dir, PatchedJSONEncoder
 # REAL WORLD DATA
 real_classification = [
     'olivetti_faces',
-    # '20newsgroups_vectorized',
-    # 'lfw_people',
+    'lfw_people',
+    '20newsgroups_vectorized',
     'covtype',
-    # 'rcv1', # ValueError: sparse multilabel-indicator for y is not supported.
-    # 'kddcup99' # ValueError: could not convert string to float: b'tcp'
+    # 'rcv1', # SPARSE PROBLEMS ValueError: sparse multilabel-indicator for y is not supported.
+    # 'kddcup99' # FILTER CATEGORICAL COLUMNS ValueError: could not convert string to float: b'tcp'
 ]
 
 sel_datasets = {ds: getattr(datasets, f'fetch_{ds}') for ds in real_classification}
@@ -74,7 +76,15 @@ classifiers = {
     })
 }
 
+
 dir = create_output_dir()
+
+
+def label_encoding(data):
+    number = preprocessing.LabelEncoder()
+    data = number.fit_transform(data)
+    return data
+
 
 for ds_name, ds_loader in sel_datasets.items():
     try:
@@ -82,20 +92,31 @@ for ds_name, ds_loader in sel_datasets.items():
         ds_train = ds_loader(subset='train')
         X_train = ds_train.data
         y_train = ds_train.target
-        # ds_test = ds_loader(subset='test')
-        # X_test = ds_test.data
-        # y_test = ds_test.target
+        ds_test = ds_loader(subset='test')
+        X_test = ds_test.data
+        y_test = ds_test.target
     except TypeError:
         ds = ds_loader()
-        X_train, _, y_train, _ = train_test_split(ds.data, ds.target)
+        X_train, X_test, y_train, y_test = train_test_split(ds.data, ds.target)
 
-    for name, (classifier, cls_params) in classifiers.items():
-        print(f'Running hyperparameter search for {ds_name:<15} {name:<18}')
-        # t_start = time.time()
-        clf = RandomizedSearchCV(classifier, cls_params, random_state=0, n_iter=5)
-        search = clf.fit(X_train, y_train)
-        with open(os.path.join(dir, f'hyperparameters__{ds_name}__{name.replace(" ", "_")}.json'), 'w') as outfile:
-            json.dump(clf.cv_results_, outfile, indent=4, cls=PatchedJSONEncoder)
+    # #### TEST DATASET
+    # clf = KNeighborsClassifier(algorithm='auto', n_neighbors=10)
+    # clf.fit(X_train, y_train)
+    # for split, X, y in [('train', X_train, y_train), ('test', X_test, y_test)]:
+    #     pred = clf.predict(X)
+    #     print(f'KNN on {ds_name:<25} {str(X_train.shape):<13} {split:<6} accuracy {accuracy_score(y, pred)*100:6.2f}')
+
+    #### RANDOMSEARCH
+    try:
+        for name, (classifier, cls_params) in classifiers.items():
+            print(f'Running hyperparameter search for {ds_name:<15} {name:<18}')
+            # t_start = time.time()
+            clf = RandomizedSearchCV(classifier, cls_params, random_state=0, n_iter=50)
+            search = clf.fit(X_train, y_train)
+            with open(os.path.join(dir, f'hyperparameters__{ds_name}__{name.replace(" ", "_")}.json'), 'w') as outfile:
+                json.dump(clf.cv_results_, outfile, indent=4, cls=PatchedJSONEncoder)
+    except Exception as e:
+        print(e)
         # t_train_end = time.time()
         # result_scores = {'fit_time': t_train_end - t_start}
         # result_scores['inf_time'] = 0
