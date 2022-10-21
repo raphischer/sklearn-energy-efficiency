@@ -29,7 +29,7 @@ def evaluate_single(args):
     else: # prepare to load pretrained weights
         args.model = args.infer_model
 
-    args.output_dir = create_output_dir(os.path.join(args.output_dir, os.path.basename(__file__)[:-3]), args.__dict__)
+    args.output_dir = create_output_dir(args.output_dir, os.path.basename(__file__)[:-3], args.__dict__)
     try:
         backend = importlib.import_module(f'mlee.ml_{args.backend}.infer')
     except ModuleNotFoundError as e:

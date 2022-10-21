@@ -35,18 +35,20 @@ def fix_seed(seed):
     return seed
 
 
-def create_output_dir(dir=None, config=None):
+def create_output_dir(dir=None, prefix='', config=None):
     if dir is None:
-        dir = os.path.join(os.getcwd(), '')
+        dir = os.path.join(os.getcwd())
     # create log dir
     timestamp = datetime.now().strftime('%Y_%m_%d_%H_%M_%S')
-    dir = f'{dir}_{timestamp}'
+    if len(prefix) > 0:
+        timestamp = f'{prefix}_{timestamp}'
+    dir = os.path.join(dir, timestamp)
     if not os.path.exists(dir):
         os.makedirs(dir)
     # write config
     if config is not None: 
         with open(os.path.join(dir, 'config.json'), 'w') as cfg:
-            config['timestamp'] = timestamp
+            config['timestamp'] = timestamp.replace(f'{prefix}_', '')
             json.dump(config, cfg, indent=4)
     # write installed packages
     with open(os.path.join(dir, 'requirements.txt'), 'w') as req:
