@@ -225,6 +225,18 @@ def monitor_pyrapl(interval, logfile, stopper, process_id):
         json.dump(out, log)
 
 
+def monitor_flops_papi(prof_func, event='PAPI_DP_OPS'):
+    try:
+        from pypapi import events, papi_high
+        print('PROFILING WITH PAPI')
+        papi_high.start_counters([getattr(events, event)])
+        prof_func()
+        return papi_high.stop_counters()
+    except Exception as e:
+        print('No monitoring with PAPI possible!\nMake sure that papi-tools and python-papi are available.\n', e)
+        return -1
+
+
 class Monitoring:
 
     def __init__(self, gpu_interval, cpu_interval, output_dir, prefix='') -> None:
