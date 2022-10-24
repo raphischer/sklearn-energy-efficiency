@@ -5,6 +5,7 @@ import os
 import pickle
 import time
 import sys
+import re
 
 import numpy as np
 from sklearn.metrics import accuracy_score, top_k_accuracy_score, f1_score, precision_score, recall_score
@@ -69,8 +70,9 @@ def evaluate_single(args):
     start_time = time.time()
     clf.fit(X_train, y_train)
     end_time = time.time()
-    monitoring.stop() 
-    model_info = finalize_model(clf, output_dir, classifiers[args.model][2](clf))
+    monitoring.stop()
+    n_params = classifiers[args.model][2](clf)
+    model_info = finalize_model(clf, output_dir, n_params)
 
     results = {
         'history': {}, # TODO track history
@@ -125,7 +127,7 @@ def get_args_parser(add_help=True):
 
     # data and model input
     parser.add_argument("--dataset", default="olivetti_faces")
-    parser.add_argument("--model", default="Random Forest")
+    parser.add_argument("--model", default="all")
     parser.add_argument("--hyperparameters", default="sklearn_hyperparameters/hyperparameters_2022_10_14_16_44_47")
     # output
     parser.add_argument("--output-dir", default='logs/sklearn', type=str, help="path to save outputs")
@@ -140,8 +142,15 @@ def get_args_parser(add_help=True):
 
 if __name__ == "__main__":
     args = get_args_parser().parse_args()
+    setattr(args, 'backend', 'sklearn')
     if args.model == 'all':
-        for clf in classifiers.keys():
+        clfs = []
+        for fname in os.listdir(args.hyperparameters):
+            match = re.match(r'hyperparameters__(.*)__(.*).json', fname)
+            if match and args.dataset == match.group(1):
+                clfs.append(match.group(2).replace('_', ' '))
+        print(f'Running evaluation on {args.dataset} for {clfs}')
+        for clf in clfs:
             args.model = clf
             evaluate_single(args)
     else:

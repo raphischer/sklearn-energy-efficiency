@@ -1,5 +1,5 @@
 {
-    "directory_name": "train_2022_10_24_15_40_23",
+    "directory_name": "infer_2022_10_24_16_21_33",
     "config": {
         "dataset": "olivetti_faces",
         "model": "AdaBoost",
@@ -8,7 +8,8 @@
         "gpu_monitor_interval": 0.01,
         "cpu_monitor_interval": 0.01,
         "seed": 42,
-        "timestamp": "2022_10_24_15_40_23"
+        "backend": "sklearn",
+        "timestamp": "2022_10_24_16_21_33"
     },
     "execution_platform": {
         "System": "Linux",
@@ -21,10 +22,10 @@
         "Total cores": 20,
         "Max Frequency": 4500.0,
         "Min Frequency": 1200.0,
-        "Current Frequency": 3855.976,
+        "Current Frequency": 1543.1197499999996,
         "Total": 67102982144,
-        "Available": 60104871936,
-        "Used": 5989720064,
+        "Available": 62990344192,
+        "Used": 3154804736,
         "GPU": {
             "0": {
                 "Name": "Quadro RTX 5000",
@@ -158,9 +159,19 @@
         "aiohttp==3.8.1",
         "absl-py==0.12.0"
     ],
-    "monitoring_pynvml": null,
-    "monitoring_pyrapl": null,
-    "monitoring_psutil": null,
-    "results": null,
-    "duration": 98.443349
+    "train": {
+        "monitoring_pynvml": null,
+        "monitoring_pyrapl": null,
+        "monitoring_psutil": null,
+        "results": null,
+        "duration": 10.158465
+    },
+    "validation": {
+        "monitoring_pynvml": null,
+        "monitoring_pyrapl": null,
+        "monitoring_psutil": null,
+        "results": null,
+        "duration": 10.159428
+    },
+    "Error": "'infer_model'"
 }

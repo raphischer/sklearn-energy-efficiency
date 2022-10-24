@@ -1,14 +1,15 @@
 {
-    "directory_name": "train_2022_10_24_15_40_01",
+    "directory_name": "infer_2022_10_24_16_21_02",
     "config": {
         "dataset": "olivetti_faces",
-        "model": "SVM",
+        "model": "Ridge",
         "hyperparameters": "sklearn_hyperparameters/hyperparameters_2022_10_14_16_44_47",
         "output_dir": "logs/sklearn",
         "gpu_monitor_interval": 0.01,
         "cpu_monitor_interval": 0.01,
         "seed": 42,
-        "timestamp": "2022_10_24_15_40_01"
+        "backend": "sklearn",
+        "timestamp": "2022_10_24_16_21_02"
     },
     "execution_platform": {
         "System": "Linux",
@@ -21,10 +22,10 @@
         "Total cores": 20,
         "Max Frequency": 4500.0,
         "Min Frequency": 1200.0,
-        "Current Frequency": 3834.485800000001,
+        "Current Frequency": 3198.04635,
         "Total": 67102982144,
-        "Available": 60606668800,
-        "Used": 5487869952,
+        "Available": 63356727296,
+        "Used": 2788405248,
         "GPU": {
             "0": {
                 "Name": "Quadro RTX 5000",
@@ -158,9 +159,19 @@
         "aiohttp==3.8.1",
         "absl-py==0.12.0"
     ],
-    "monitoring_pynvml": null,
-    "monitoring_pyrapl": null,
-    "monitoring_psutil": null,
-    "results": null,
-    "duration": 120.393329
+    "train": {
+        "monitoring_pynvml": null,
+        "monitoring_pyrapl": null,
+        "monitoring_psutil": null,
+        "results": null,
+        "duration": 41.117078
+    },
+    "validation": {
+        "monitoring_pynvml": null,
+        "monitoring_pyrapl": null,
+        "monitoring_psutil": null,
+        "results": null,
+        "duration": 41.11795
+    },
+    "Error": "'infer_model'"
 }

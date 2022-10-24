@@ -2,6 +2,7 @@ import time
 import os
 import json
 
+import numpy as np
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
@@ -26,28 +27,39 @@ from mlee.util import create_output_dir, PatchedJSONEncoder
 # REAL WORLD DATA
 sel_datasets = [
     # 'olivetti_faces',
-    'lfw_people',
-    '20newsgroups_vectorized',
+    # 'lfw_people',
+    # '20newsgroups_vectorized',
     'covtype',
     # 'rcv1', # SPARSE PROBLEMS ValueError: sparse multilabel-indicator for y is not supported.
     # 'kddcup99' # FILTER CATEGORICAL COLUMNS ValueError: could not convert string to float: b'tcp'
 ]
 
 classifiers = {
-    # "Nearest Neighbors": (KNeighborsClassifier(algorithm='auto'), {'n_neighbors': np.arange(1, 20)}),
-    # "SVM": (SVC(), {
-    #     'kernel': ('linear', 'rbf', 'poly', 'sigmoid'),
-    #     'C': uniform(0, 10),
-    #     'gamma': ['scale', 'auto', 0.0001, 0.001, 0.01, 0.1]
-    # }),
+    "Nearest Neighbors": (
+        KNeighborsClassifier(algorithm='auto'),
+        {
+            'n_neighbors': np.arange(1, 20)
+        },
+        lambda clf: 0
+    ),
+    
+    "SVM": (
+        SVC(), 
+        {
+            'kernel': ('linear', 'rbf', 'poly', 'sigmoid'),
+            'C': uniform(0, 10),
+            'gamma': ['scale', 'auto', 0.0001, 0.001, 0.01, 0.1]
+        },
+        lambda clf: 0
+    ),
 
     "Random Forest": (
         RandomForestClassifier(), 
         {
-            "n_estimators": [10, 20, 40, 75, 100, 150, 200],
+            "n_estimators": [10, 20, 40, 75, 100, 150],
             "criterion": ["gini", "entropy"],
-            "max_depth": [50, 30, 20, 15, 10, 5],
-            "max_features": ['sqrt', 'log2', 5, 10],
+            "max_depth": [10, 5],
+            "max_features": ['sqrt', 'log2', 5, 10, 20],
         },
         # n_params = 2 * number of nodes (feature & threshold)
         lambda clf: sum([tree.tree_.node_count * 2 for tree in clf.estimators_])
@@ -56,61 +68,61 @@ classifiers = {
     "Extra Random Forest": (
         ExtraTreesClassifier(), 
         {
-            "n_estimators": [10, 20, 40, 75, 100, 150, 200],
+            "n_estimators": [10, 20, 40, 75, 100, 150],
             "criterion": ["gini", "entropy"],
-            "max_depth": [50, 30, 20, 15, 10, 5],
-            "max_features": ['sqrt', 'log2', 5, 10],
+            "max_depth": [10, 5],
+            "max_features": ['sqrt', 'log2', 5, 10, 20],
         },
         # n_params = 2 * number of nodes (feature & threshold)
         lambda clf: sum([tree.tree_.node_count * 2 for tree in clf.estimators_])
     ),
 
-    # "AdaBoost": (
-    #     AdaBoostClassifier(),
-    #     {
-    #         "n_estimators": [10, 20, 40, 75, 100, 150, 200],
-    #         'learning_rate': [0.01, 0.05, 0.1, 0.5, 1.0, 2.0],
-    #         "algorithm": ['SAMME', 'SAMME.R']
-    #     },
-    #     # n_params = 2 * number of nodes (feature & threshold)
-    #     lambda clf: sum([tree.tree_.node_count * 2 for tree in clf.estimators_])
-    # ),
+    "AdaBoost": (
+        AdaBoostClassifier(),
+        {
+            "n_estimators": [10, 20, 40, 75, 100, 150, 200],
+            'learning_rate': [0.01, 0.05, 0.1, 0.5, 1.0, 2.0],
+            "algorithm": ['SAMME', 'SAMME.R']
+        },
+        # n_params = 2 * number of nodes (feature & threshold)
+        lambda clf: sum([tree.tree_.node_count * 2 for tree in clf.estimators_])
+    ),
 
-    # "Naive Bayes": (
-    #     GaussianNB(),
-    #     {
-    #         "var_smoothing": [1e-6, 1e-9, 1e-12]
-    #     },
-    #     lambda clf: sum([clf.class_prior_.size, clf.epsilon_, ])
-    # ),
+    "Naive Bayes": (
+        GaussianNB(),
+        {
+            "var_smoothing": [1e-6, 1e-9, 1e-12]
+        },
+        lambda clf: sum([clf.class_prior_.size, clf.epsilon_, ])
+    ),
 
-    # "Ridge": (
-    #     linear_model.RidgeClassifier(),
-    #     {
-    #         'alpha': uniform(0, 2)
-    #     },
-    #     lambda clf: 0
-    # ),
+    "Ridge": (
+        linear_model.RidgeClassifier(),
+        {
+            'alpha': uniform(0, 2)
+        },
+        lambda clf: 0
+    ),
 
-    # "Logistic Regression": (
-    #     linear_model.LogisticRegression(max_iter=500),
-    #     {
-    #         'penalty': ['l1', 'l2', 'elasticnet', None],
-    #         'C': uniform(0, 10),
-    #         'solver': ['lbfgs', 'sag', 'saga'],
-    #     },
-    #     lambda clf: 0
-    # ),
+    "Logistic Regression": (
+        linear_model.LogisticRegression(max_iter=500),
+        {
+            'penalty': ['l1', 'l2', 'elasticnet', None],
+            'C': uniform(0, 10),
+            'solver': ['lbfgs', 'sag', 'saga'],
+        },
+        lambda clf: 0
+    ),
 
-    # "SGD": (
-    #     linear_model.SGDClassifier(max_iter=500),
-    #     {
-    #         "loss" : ['hinge', 'log_loss', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
-    #         "penalty": ['l2', 'l1', 'elasticnet'],
-    #         'alpha': uniform(0, 2)
-    #     },
-    #     lambda clf: 0
-    # )
+    "SGD": (
+        linear_model.SGDClassifier(max_iter=500),
+        {
+            "loss" : ['hinge', 'log_loss', 'log', 'modified_huber', 'squared_hinge', 'perceptron'],
+            "penalty": ['l2', 'l1', 'elasticnet'],
+            'alpha': uniform(0, 2)
+        },
+        lambda clf: 0
+    )
 }
 
 
