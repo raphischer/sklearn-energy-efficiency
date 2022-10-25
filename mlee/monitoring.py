@@ -246,10 +246,12 @@ class Monitoring:
         if cpu_interval > 0:
             self.monitoring.append(Monitor(monitor_psutil, interval=cpu_interval, outfile=os.path.join(output_dir, f'{prefix}monitoring_psutil.json'), device_id=os.getpid()))
             self.monitoring.append(Monitor(monitor_pyrapl, interval=cpu_interval, outfile=os.path.join(output_dir, f'{prefix}monitoring_pyrapl.json')))
+        # time.sleep(1 * min([cpu_interval, gpu_interval]))
 
     def stop(self):
         for monitor in self.monitoring:
             monitor.stop()
+
 
 class Monitor:
 

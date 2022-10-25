@@ -1,3 +1,4 @@
+from genericpath import isdir
 import os
 import json
 from statistics import mean
@@ -67,13 +68,21 @@ TASK_METRICS_CALCULATION = {        # boolean informs whether given task log is 
         'parameters':               (True,  lambda model_log: calc_parameters(model_log)),
         'gflops':                   (True,  lambda model_log: calc_gflops(model_log)),
         'fsize':                    (True,  lambda model_log: calc_fsize(model_log)),
-        'train_power_draw_epoch':   (True,  lambda model_log: calc_power_draw_train(model_log, True)),
+        # 'train_power_draw_epoch':   (True,  lambda model_log: calc_power_draw_train(model_log, True)),
         'train_power_draw':         (True,  lambda model_log: calc_power_draw_train(model_log)),
-        'train_time_epoch':         (True,  lambda model_log: calc_time_train(model_log, True)),
+        # 'train_time_epoch':         (True,  lambda model_log: calc_time_train(model_log, True)),
         'train_time':               (True,  lambda model_log: calc_time_train(model_log)),
         'top1_val':                 (False, lambda model_val_log: calc_accuracy(model_val_log)),
         'top5_val':                 (False, lambda model_val_log: calc_accuracy(model_val_log, top5=True))
     }
+}
+
+DEFAULT_REFERENCES = {
+    'imagenet': 'ResNet101',
+    'olivetti_faces': 'Random Forest',
+    'lfw_people': 'Random Forest',
+    '20newsgroups_vectorized': 'Random Forest',
+    'covtype': 'Random Forest'
 }
 
 
@@ -164,25 +173,25 @@ def calc_accuracy(res, train=False, top5=False):
 
 def calc_parameters(res):
     if 'validation' in res:
-        return res['validation']['results']['model']['params'] * 1e-6
-    return res['results']['model']['params'] * 1e-6
+        return res['validation']['results']['model']['params'] # * 1e-6
+    return res['results']['model']['params'] # * 1e-6
 
 
 def calc_gflops(res):
     if 'validation' in res:
         # print(res['config']['backend'], res['execution_platform']['Node Name'], res['validation']['results']['model']['flops'] * 1e-9)
-        return res['validation']['results']['model']['flops'] * 1e-9
-    return res['results']['model']['flops'] * 1e-9
+        return res['validation']['results']['model']['flops'] # * 1e-9
+    return res['results']['model']['flops'] # * 1e-9
 
 
 def calc_fsize(res):
     if 'validation' in res:
-        return res['validation']['results']['model']['fsize'] * 1e-6
-    return res['results']['model']['fsize'] * 1e-6
+        return res['validation']['results']['model']['fsize'] # * 1e-6
+    return res['results']['model']['fsize'] # * 1e-6
 
 
 def calc_inf_time(res):
-    return res['validation']['duration'] / 50000 * 1000
+    return res['validation']['duration'] # / 50000 * 1000
 
 
 def calc_power_draw(res):
@@ -192,21 +201,37 @@ def calc_power_draw(res):
         power_draw += res['validation']["monitoring_pynvml"]["total"]["total_power_draw"]
     if res['validation']["monitoring_pyrapl"] is not None:
         power_draw += res['validation']["monitoring_pyrapl"]["total"]["total_power_draw"]
-    return power_draw / 50000
+    return power_draw # / 50000
 
 
-def calc_power_draw_train(res, per_epoch=False):
-    # TODO add the RAPL measurements if available
-    val_per_epoch = res["monitoring_pynvml"]["total"]["total_power_draw"] / len(res["results"]["history"]["loss"])
-    val_per_epoch /= 3600000 # Ws to kWh
+def calc_time_train(res, per_epoch=False):
+    if len(res['results']['history']) < 1:
+        if per_epoch:
+            return None
+        else:
+            return res["duration"]
+    val_per_epoch = res["duration"] / len(res["results"]["history"]["loss"])
+    # val_per_epoch /= 3600 # s to h
     if not per_epoch:
         val_per_epoch *= MODEL_INFO[res["config"]["model"]]['epochs']
     return val_per_epoch
 
 
-def calc_time_train(res, per_epoch=False):
-    val_per_epoch = res["duration"] / len(res["results"]["history"]["loss"])
-    val_per_epoch /= 3600 # s to h
+def calc_power_draw_train(res, per_epoch=False):
+    power_draw = 0
+    return power_draw
+    if res["monitoring_pynvml"] is not None:
+        power_draw += res["monitoring_pynvml"]["total"]["total_power_draw"]
+    if res["monitoring_pyrapl"] is not None:
+        power_draw += res["monitoring_pyrapl"]["total"]["total_power_draw"]
+    # if there is no information on training epochs
+    if len(res['results']['history']) < 1:
+        if per_epoch:
+            return None
+        else:
+            return power_draw
+    val_per_epoch = power_draw / len(res["results"]["history"]["loss"])
+    # val_per_epoch /= 3600000 # Ws to kWh
     if not per_epoch:
         val_per_epoch *= MODEL_INFO[res["config"]["model"]]['epochs']
     return val_per_epoch
@@ -304,25 +329,42 @@ def load_results(results_directory, weighting=None):
     if weighting is None:
         with open(os.path.join(os.path.dirname(__file__), 'weighting.json'), 'r') as wf:
             weighting = json.load(wf)
+    
+    logs, summaries = {}, {}
+    for subdir in os.listdir(results_directory):
+        subdir = os.path.join(results_directory, subdir)
+        if os.path.isdir(subdir):
+            sub_logs, sub_summaries = load_subresults(subdir, weighting)
+            logs.update(sub_logs)
+            summaries.update(sub_summaries)
+        else:
+            raise RuntimeError('Found non-directory item in results folder!')
+    return logs, summaries
 
-    logs = {task: {} for task in TASK_TYPES.values()}
-    for fname in os.listdir(results_directory):
-        with open(os.path.join(results_directory, fname), 'r') as rf:
+
+def load_subresults(results_subdir, weighting):    
+    logs = {}
+    for fname in os.listdir(results_subdir):
+        with open(os.path.join(results_subdir, fname), 'r') as rf:
             log = json.load(rf)
             env_key = get_environment_key(log)
             task_type = TASK_TYPES[fname.split('_')[0]]
-            if env_key not in logs[task_type]:
-                logs[task_type][env_key] = {}
-            if log['config']['model'] in logs[task_type][env_key]:
+            dataset = log['config']['dataset'] if 'dataset' in log['config'] else os.path.basename(results_subdir)
+            if dataset not in logs:
+                logs[dataset] = {task: {} for task in TASK_TYPES.values()}
+            if env_key not in logs[dataset][task_type]:
+                logs[dataset][task_type][env_key] = {}
+            if log['config']['model'] in logs[dataset][task_type][env_key]:
                 raise NotImplementedError(f'Already found results for {log["config"]["model"]} on {env_key}, averaging runs is not implemented (yet)!')
-            logs[task_type][env_key][log['config']['model']] = log
+            logs[dataset][task_type][env_key][log['config']['model']] = log
 
     # Exctract all relevant metadata
-    summaries = {task: {} for task in TASK_TYPES.values()}
-    for task, metrics in TASK_METRICS_CALCULATION.items():
-        for env_key, env_logs in logs[task].items():
-            if env_key not in summaries[task]:
-                summaries[task][env_key] = []
+    summaries = {ds: {task: {} for task in TASK_TYPES.values()} for ds in logs.keys()}
+    
+    for task_type, metrics in TASK_METRICS_CALCULATION.items():
+        for env_key, env_logs in logs[dataset][task_type].items():
+            if env_key not in summaries[dataset][task_type]:
+                summaries[dataset][task_type][env_key] = []
         
             # Calculate inference metrics for rating
             for model_name, model_log in env_logs.items():
@@ -330,65 +372,74 @@ def load_results(results_directory, weighting=None):
                     'environment': env_key,
                     'name': model_name,
                     'dataset': 'ImageNet',
-                    'task_type': task.capitalize(),
+                    'task_type': task_type.capitalize(),
                     'power_draw_sources': characterize_monitoring(model_log if 'monitoring_pynvml' in model_log else model_log['validation'])
                 }
                 for metrics_key, (use_log, metrics_calculation) in metrics.items():
                     try:
-                        if not use_log: # calculate based on the inference log
-                            model_information[metrics_key] = {'value': metrics_calculation(logs['inference'][env_key][model_name])}
-                        else:
+                        if use_log:
                             model_information[metrics_key] = {'value': metrics_calculation(model_log)}
-                    except Exception:
+                        else: # calculate based on the inference log
+                            model_information[metrics_key] = {'value': metrics_calculation(logs[dataset]['inference'][env_key][model_name])}
+                    except Exception as e:
                         model_information[metrics_key] = {'value': None}
                     model_information[metrics_key]['weight'] = weighting[metrics_key]
-                summaries[task][env_key].append(model_information)
+                summaries[dataset][task_type][env_key].append(model_information)
 
     # Transform logs dict for one environment to list of logs
-    for task, task_logs in logs.items():
-        for env_key, env_logs in task_logs.items():
-            logs[task][env_key] = [model_logs for model_logs in env_logs.values()]
+    for ds, ds_logs in logs.items():
+        for task_type, task_logs in ds_logs.items():
+            for env_key, env_logs in task_logs.items():
+                logs[ds][task_type][env_key] = [model_logs for model_logs in env_logs.values()]
 
     return logs, summaries
 
 
-def rate_results(summaries, reference_name, boundaries=None):
+def rate_results(summaries, references=None, boundaries=None):
+    if references is None:
+        references = DEFAULT_REFERENCES
     if boundaries is None:
         boundaries = load_boundaries()
 
-    # Get reference values for each environment and task
+    # Get reference values for each dataset, environment and task
     reference_values = {}
-    for task, task_logs in summaries.items():
-        reference_values[task] = {env_key: {} for env_key in task_logs.keys()}
-        for env_key, env_logs in task_logs.items():
-            for model in env_logs:
-                if model['name'] == reference_name:
-                    for metrics_key, metrics_val in model.items():
-                        if isinstance(metrics_val, dict) and 'value' in metrics_val:
-                            if metrics_val['value'] is None:
-                                raise RuntimeError(f'Found unratable metric {metrics_key} for reference model {reference_name} on {env_key} {task}!')
-                            reference_values[task][env_key][metrics_key] = metrics_val['value']
-                    break
-
-    # Calculate value indices using reference values and boundaries
-    for task, task_summs in summaries.items():
-        for env_key, env_summs in task_summs.items():
-            for model in env_summs:
-                for key in model.keys():
-                    if isinstance(model[key], dict) and 'value' in model[key]:
-                        if model[key]['value'] is None:
-                            model[key]['index'] = None
-                            model[key]['rating'] = 4
-                        else:
-                            model[key]['index'] = value_to_index(model[key]['value'], reference_values[task][env_key][key], key)
-                            model[key]['rating'] = index_to_rating(model[key]['index'], boundaries[key])
+    for ds, ds_logs in summaries.items():
+        reference_name = references[ds]
+        reference_values[ds] = {}
+        for task_type, task_logs in ds_logs.items():
+            reference_values[ds][task_type] = {env_key: {} for env_key in task_logs.keys()}
+            for env_key, env_logs in task_logs.items():
+                for model in env_logs:
+                    if model['name'] == reference_name:
+                        for metrics_key, metrics_val in model.items():
+                            if isinstance(metrics_val, dict) and 'value' in metrics_val:
+                                if metrics_val['value'] is None:
+                                    raise RuntimeError(f'Found unratable metric {metrics_key} for reference model {reference_name} on {env_key} {task_type}!')
+                                reference_values[ds][task_type][env_key][metrics_key] = metrics_val['value']
+                        break
+                else:
+                    raise RuntimeError(f'Reference {reference_name} not found in {ds} {task_type} {env_key} logs!')
+            
+            # Calculate value indices using reference values and boundaries
+            for env_key, env_summs in summaries[ds][task_type].items():
+                for model in env_summs:
+                    for key in model.keys():
+                        if isinstance(model[key], dict) and 'value' in model[key]:
+                            if model[key]['value'] is None:
+                                model[key]['index'] = None
+                                model[key]['rating'] = 4
+                            else:
+                                model[key]['index'] = value_to_index(model[key]['value'], reference_values[ds][task_type][env_key][key], key)
+                                model[key]['rating'] = index_to_rating(model[key]['index'], boundaries[key])
 
     # Calculate the real-valued boundaries
     real_boundaries = {}
-    for task, task_ref_values in reference_values.items():
-        real_boundaries[task] = {env_key: {} for env_key in task_ref_values.keys()}
-        for env_key, env_ref_values in task_ref_values.items():
-            for key, val in env_ref_values.items():
-                real_boundaries[task][env_key][key] = [(index_to_value(start, val, key), index_to_value(stop, val, key)) for (start, stop) in boundaries[key]]
+    for ds, ds_ref_values in reference_values.items():
+        real_boundaries[ds] = {}
+        for task_type, task_ref_values in ds_ref_values.items():
+            real_boundaries[ds][task_type] = {env_key: {} for env_key in task_ref_values.keys()}
+            for env_key, env_ref_values in task_ref_values.items():
+                for key, val in env_ref_values.items():
+                    real_boundaries[ds][task_type][env_key][key] = [(index_to_value(start, val, key), index_to_value(stop, val, key)) for (start, stop) in boundaries[key]]
     
     return summaries, boundaries, real_boundaries

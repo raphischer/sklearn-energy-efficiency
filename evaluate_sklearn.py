@@ -45,7 +45,7 @@ def finalize_model(clf, output_dir, n_params):
 
     # count flops of infering single random data row
     test_data = np.random.rand(1, clf.n_features_in_)
-    flops = monitor_flops_papi(lambda : clf.predict(test_data))
+    flops = monitor_flops_papi(lambda : clf.predict(test_data))[0]
 
     clf_info = {
         'hyperparams': clf.get_params(),
@@ -57,16 +57,17 @@ def finalize_model(clf, output_dir, n_params):
 
 
 def evaluate_single(args):
+    print(f'Running evaluation on {args.dataset} for {args.model}')
     t0 = time.time()
     args.seed = fix_seed(args.seed)
 
-    step = 'train' ############## TRAINING ##############
-    output_dir = create_output_dir(args.output_dir, step, args.__dict__)
+    ############## TRAINING ##############
+    output_dir = create_output_dir(args.output_dir, 'train', args.__dict__)
     tmp = sys.stdout # reroute the stdout to logfile, remember to call close!
     sys.stdout = Logger(os.path.join(output_dir, f'logfile.txt'))
 
     X_train, X_test, y_train, y_test, clf = init_model_and_data(args)
-    monitoring = Monitoring(args.gpu_monitor_interval, args.cpu_monitor_interval, output_dir, f'{step}_')
+    monitoring = Monitoring(0, args.cpu_monitor_interval, output_dir)
     start_time = time.time()
     clf.fit(X_train, y_train)
     end_time = time.time()
@@ -81,15 +82,15 @@ def evaluate_single(args):
         'model': model_info
     }
     # write results
-    with open(os.path.join(output_dir, f'{step}_results.json'), 'w') as rf:
+    with open(os.path.join(output_dir, f'results.json'), 'w') as rf:
         json.dump(results, rf, indent=4, cls=PatchedJSONEncoder)
 
 
 
-    step = 'infer' ############## INFERENCE ##############
+    split = 'validation' ############## INFERENCE ##############
     setattr(args, 'train_logdir', output_dir)
-    output_dir = create_output_dir(args.output_dir, step, args.__dict__)
-    monitoring = Monitoring(args.gpu_monitor_interval, args.cpu_monitor_interval, output_dir, f'{step}_')
+    output_dir = create_output_dir(args.output_dir, 'infer', args.__dict__)
+    monitoring = Monitoring(0, args.cpu_monitor_interval, output_dir, f'{split}_')
     start_time = time.time()
     y_pred = clf.predict(X_test)
     end_time = time.time()
@@ -109,14 +110,15 @@ def evaluate_single(args):
             results['metrics'][score] = func(y_test, y_pred)
     if hasattr(clf, 'predict_proba'):
         y_proba = clf.predict_proba(X_test)
-        results['metrics']['top_5'] = top_k_accuracy_score(y_test, y_proba, k=5, labels=clf.classes_)
+        results['metrics']['top_5_accuracy'] = top_k_accuracy_score(y_test, y_proba, k=5, labels=clf.classes_)
     # write results
-    with open(os.path.join(output_dir, f'{step}_results.json'), 'w') as rf:
+    with open(os.path.join(output_dir, f'{split}_results.json'), 'w') as rf:
         json.dump(results, rf, indent=4, cls=PatchedJSONEncoder)
 
 
+    ############## FNALIZE ##############
 
-    print(f"Evaluation finished in {timedelta(seconds=int(time.time() - t0))} seconds, results can be found in {output_dir}")
+    print(f"Evaluation finished in {timedelta(seconds=int(time.time() - t0))} seconds, results can be found in {output_dir}\n")
     sys.stdout.close()
     sys.stdout = tmp
     return output_dir
@@ -132,8 +134,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--hyperparameters", default="sklearn_hyperparameters/hyperparameters_2022_10_14_16_44_47")
     # output
     parser.add_argument("--output-dir", default='logs/sklearn', type=str, help="path to save outputs")
-    parser.add_argument("--gpu-monitor-interval", default=.01, type=float, help="Setting to > 0 activates GPU profiling every X seconds")
-    parser.add_argument("--cpu-monitor-interval", default=.01, type=float, help="Setting to > 0 activates CPU profiling every X seconds")
+    parser.add_argument("--cpu-monitor-interval", default=.0001, type=float, help="Setting to > 0 activates CPU profiling every X seconds")
 
     # randomization and hardware
     parser.add_argument("--seed", type=int, default=42, help="Seed to use (if -1, uses and logs random seed)")

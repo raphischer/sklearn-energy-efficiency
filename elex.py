@@ -16,16 +16,18 @@ from mlee.ratings import load_results, rate_results, calculate_compound_rating, 
 from mlee.label_generator import EnergyLabel
 
 
+# TODO make reference model selection available in Elex
+
+
 class Visualization(dash.Dash):
 
-    def __init__(self, results_directory, reference_name='ResNet101', **kwargs):
+    def __init__(self, results_directory, **kwargs):
         super().__init__(__name__, **kwargs)
         self.logs, summaries = load_results(results_directory)
-        self.summaries, self.boundaries, self.boundaries_real = rate_results(summaries, reference_name)
+        self.summaries, self.boundaries, self.boundaries_real = rate_results(summaries)
         self.environments = {task: sorted(list(envs.keys())) for task, envs in self.summaries.items()}
         self.keys = {task: list(vals.keys()) for task, vals in TASK_METRICS_CALCULATION.items()}
         self.task, self.xaxis, self.yaxis = 'inference', 'top1_val', 'inference_power_draw'
-        self.reference_name = reference_name
         self.current = { 'summary': None, 'label': None, 'logs': None }
         # setup page and create callbacks
         self.layout = create_page(list(self.keys.keys()))
@@ -104,10 +106,10 @@ class Visualization(dash.Dash):
         if uploaded_boundaries is not None:
             boundaries_dict = json.loads(base64.b64decode(uploaded_boundaries.split(',')[-1]))
             self.boundaries = load_boundaries(boundaries_dict)
-            self.summaries, self.boundaries, self.boundaries_real = rate_results(self.summaries, self.reference_name, self.boundaries)
+            self.summaries, self.boundaries, self.boundaries_real = rate_results(self.summaries, self.boundaries)
         if calculated_boundaries is not None and 'calc' in dash.callback_context.triggered[0]['prop_id']:
             self.boundaries = calculate_optimal_boundaries(self.summaries, [0.8, 0.6, 0.4, 0.2])
-            self.summaries, self.boundaries, self.boundaries_real = rate_results(self.summaries, self.reference_name, self.boundaries)
+            self.summaries, self.boundaries, self.boundaries_real = rate_results(self.summaries, self.boundaries)
         self.xaxis = xaxis or self.xaxis
         self.yaxis = yaxis or self.yaxis
         values = []
@@ -130,7 +132,7 @@ class Visualization(dash.Dash):
                     self.boundaries[axis][3 - sl_idx][1] = sl_val
                     update_necessary = True
         if update_necessary:
-            self.summaries, self.boundaries, self.boundaries_real = rate_results(self.summaries, self.reference_name, self.boundaries)
+            self.summaries, self.boundaries, self.boundaries_real = rate_results(self.summaries, self.boundaries)
 
     def update_task(self, type=None):
         self.task = type or self.task

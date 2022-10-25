@@ -43,8 +43,9 @@ def create_output_dir(dir=None, prefix='', config=None):
     if len(prefix) > 0:
         timestamp = f'{prefix}_{timestamp}'
     dir = os.path.join(dir, timestamp)
-    if not os.path.exists(dir):
-        os.makedirs(dir)
+    while os.path.exists(dir):
+        dir += '_'
+    os.makedirs(dir)
     # write config
     if config is not None: 
         with open(os.path.join(dir, 'config.json'), 'w') as cfg:
