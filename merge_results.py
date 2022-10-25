@@ -31,36 +31,36 @@ def read_requirements(filepath, default_path=None):
 
 def aggregate_results(directory, train_directories=None):
     res = {'directory_name': basename(directory)}
-    try:
-        with open(os.path.join(directory, 'config.json'), 'r') as cf:
-            res['config'] = json.load(cf)
-            res['execution_platform'] = read_metrics(os.path.join(directory, 'execution_platform.json'))
-            res['requirements'] = read_requirements(os.path.join(directory, 'requirements.txt'))
-        if basename(directory).startswith('infer'):
-            for split in ['train', 'validation']:
-                res[split] = {}
-                res[split]['monitoring_pynvml'] = aggregate_log(os.path.join(directory, f'{split}_monitoring_pynvml.json'))
-                res[split]['monitoring_pyrapl'] = aggregate_log(os.path.join(directory, f'{split}_monitoring_pyrapl.json'))
-                res[split]['monitoring_psutil'] = aggregate_log(os.path.join(directory, f'{split}_monitoring_psutil.json'))
-                res[split]['results'] = read_metrics(os.path.join(directory, f'{split}_results.json'))
-                if res[split]['results'] is None:
-                    res[split]['duration'] = (datetime.now() - datetime.strptime(res["config"]["timestamp"], "%Y_%m_%d_%H_%M_%S")).total_seconds()
-                else:
-                    res[split]['duration'] = res[split]['results']['end'] - res[split]['results']['start']
-            train_dir = os.path.join(train_directories, basename(res['config']['infer_model']))
-            if os.path.isdir(train_dir):
-                res['training'] = aggregate_results(train_dir)
-        else:
-            res['monitoring_pynvml'] = aggregate_log(os.path.join(directory, 'monitoring_pynvml.json'))
-            res['monitoring_pyrapl'] = aggregate_log(os.path.join(directory, 'monitoring_pyrapl.json'))
-            res['monitoring_psutil'] = aggregate_log(os.path.join(directory, 'monitoring_psutil.json'))
-            res['results'] = read_metrics(os.path.join(directory, 'results.json'))
-            if res['results'] is None:
-                res['duration'] = (datetime.now() - datetime.strptime(res["config"]["timestamp"], "%Y_%m_%d_%H_%M_%S")).total_seconds()
+    with open(os.path.join(directory, 'config.json'), 'r') as cf:
+        res['config'] = json.load(cf)
+        res['execution_platform'] = read_metrics(os.path.join(directory, 'execution_platform.json'))
+        res['requirements'] = read_requirements(os.path.join(directory, 'requirements.txt'))
+    if basename(directory).startswith('infer'):
+        for split in ['train', 'validation']:
+            res[split] = {}
+            res[split]['monitoring_pynvml'] = aggregate_log(os.path.join(directory, f'{split}_monitoring_pynvml.json'))
+            res[split]['monitoring_pyrapl'] = aggregate_log(os.path.join(directory, f'{split}_monitoring_pyrapl.json'))
+            res[split]['monitoring_psutil'] = aggregate_log(os.path.join(directory, f'{split}_monitoring_psutil.json'))
+            res[split]['results'] = read_metrics(os.path.join(directory, f'{split}_results.json'))
+            if res[split]['results'] is None:
+                res[split]['duration'] = (datetime.now() - datetime.strptime(res["config"]["timestamp"], "%Y_%m_%d_%H_%M_%S")).total_seconds()
             else:
-                res['duration'] = res['results']['end'] - res['results']['start']
-    except Exception as e:
-        res['Error'] = str(e)
+                res[split]['duration'] = res[split]['results']['end'] - res[split]['results']['start']
+        if train_directories is not None: # TODO check if this is still needed
+            train_dir = os.path.join(train_directories, basename(res['config']['infer_model']))
+        else:
+            train_dir = res['config']['train_logdir']
+        if os.path.isdir(train_dir):
+            res['training'] = aggregate_results(train_dir)
+    else:
+        res['monitoring_pynvml'] = aggregate_log(os.path.join(directory, 'monitoring_pynvml.json'))
+        res['monitoring_pyrapl'] = aggregate_log(os.path.join(directory, 'monitoring_pyrapl.json'))
+        res['monitoring_psutil'] = aggregate_log(os.path.join(directory, 'monitoring_psutil.json'))
+        res['results'] = read_metrics(os.path.join(directory, 'results.json'))
+        if res['results'] is None:
+            res['duration'] = (datetime.now() - datetime.strptime(res["config"]["timestamp"], "%Y_%m_%d_%H_%M_%S")).total_seconds()
+        else:
+            res['duration'] = res['results']['end'] - res['results']['start']
     return res
 
 
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--directory", default="logs/sklearn", type=str, help="directory with experiments")
-    parser.add_argument("--train-dirs", default="/raid/fischer/train50", type=str, help="directory with original training experiments, can be used for the inference results")
+    parser.add_argument("--train-dirs", default=None, type=str, help="directory with original training experiments, can be used for the inference results")
     parser.add_argument("--output-log-dir", default="", type=str, help="directory where the logs shall be stored (.tar.gz archives)")
     parser.add_argument("--output-agglog-dir", default="results/sklearn", type=str, help="directory where experiments log aggregates (json format) are created")
     parser.add_argument("--clean", action='store_true', help="set to first delete all content in given output directories")

@@ -1,15 +1,16 @@
 {
-    "directory_name": "train_2022_10_24_16_21_01",
+    "directory_name": "train_2022_10_25_15_13_37",
     "config": {
         "dataset": "olivetti_faces",
-        "model": "SVM",
+        "model": "AdaBoost",
         "hyperparameters": "sklearn_hyperparameters/hyperparameters_2022_10_14_16_44_47",
         "output_dir": "logs/sklearn",
         "gpu_monitor_interval": 0.01,
         "cpu_monitor_interval": 0.01,
         "seed": 42,
         "backend": "sklearn",
-        "timestamp": "2022_10_24_16_21_01"
+        "timestamp": "2022_10_25_15_13_37",
+        "train_logdir": "logs/sklearn/train_2022_10_25_15_13_22"
     },
     "execution_platform": {
         "System": "Linux",
@@ -22,10 +23,10 @@
         "Total cores": 20,
         "Max Frequency": 4500.0,
         "Min Frequency": 1200.0,
-        "Current Frequency": 2177.0987000000005,
+        "Current Frequency": 3843.1219499999997,
         "Total": 67102982144,
-        "Available": 63438983168,
-        "Used": 2706358272,
+        "Available": 62813421568,
+        "Used": 3432919040,
         "GPU": {
             "0": {
                 "Name": "Quadro RTX 5000",
@@ -163,5 +164,5 @@
     "monitoring_pyrapl": null,
     "monitoring_psutil": null,
     "results": null,
-    "duration": 42.185731
+    "duration": 79.897916
 }

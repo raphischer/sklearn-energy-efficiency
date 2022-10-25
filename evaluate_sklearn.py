@@ -87,6 +87,7 @@ def evaluate_single(args):
 
 
     step = 'infer' ############## INFERENCE ##############
+    setattr(args, 'train_logdir', output_dir)
     output_dir = create_output_dir(args.output_dir, step, args.__dict__)
     monitoring = Monitoring(args.gpu_monitor_interval, args.cpu_monitor_interval, output_dir, f'{step}_')
     start_time = time.time()
