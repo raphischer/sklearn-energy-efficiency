@@ -92,7 +92,7 @@ def load_model_info(dataset, model_name):
     except KeyError:
         info = {
             'epochs': None,
-            'url': 'https://lamarr-institute.org/' # TODO later update with paper URL
+            'url': 'https://scikit-learn.org/stable/user_guide.html' # TODO later update with paper URL
         }
     return info
 
