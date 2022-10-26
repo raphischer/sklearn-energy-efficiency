@@ -1,0 +1,4 @@
+{
+    "Name": "Scikit-learn",
+    "Packages": ["scikit-learn"]
+}
