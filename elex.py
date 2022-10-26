@@ -12,7 +12,7 @@ from mlee.elex.pages import create_page
 from mlee.elex.util import summary_to_html_tables, toggle_element_visibility, AXIS_NAMES
 from mlee.elex.graphs import create_scatter_graph, create_bar_graph, add_rating_background
 from mlee.ratings import load_boundaries, save_boundaries, calculate_optimal_boundaries, save_weights, update_weights
-from mlee.ratings import load_results, rate_results, calculate_compound_rating, TASK_METRICS_CALCULATION, MODEL_INFO
+from mlee.ratings import load_results, rate_results, calculate_compound_rating, TASK_METRICS_CALCULATION, load_model_info
 from mlee.label_generator import EnergyLabel
 
 
@@ -25,21 +25,26 @@ class Visualization(dash.Dash):
         super().__init__(__name__, **kwargs)
         self.logs, summaries = load_results(results_directory)
         self.summaries, self.boundaries, self.boundaries_real = rate_results(summaries)
-        self.environments = {task: sorted(list(envs.keys())) for task, envs in self.summaries.items()}
+        self.dataset, self.task, self.xaxis, self.yaxis = 'olivetti_faces', 'inference', 'top1_val', 'inference_power_draw'
+        self.datasets = list(self.summaries.keys())
+        self.environments = {task: sorted(list(envs.keys())) for task, envs in self.summaries[self.dataset].items()}
         self.keys = {task: list(vals.keys()) for task, vals in TASK_METRICS_CALCULATION.items()}
-        self.task, self.xaxis, self.yaxis = 'inference', 'top1_val', 'inference_power_draw'
         self.current = { 'summary': None, 'label': None, 'logs': None }
         # setup page and create callbacks
-        self.layout = create_page(list(self.keys.keys()))
+        self.layout = create_page(self.datasets)
 
         self.callback(
             [Output('x-weight', 'value'), Output('y-weight', 'value')],
             [Input('xaxis', 'value'), Input('yaxis', 'value'), Input('weights-upload', 'contents')]
         ) (self.update_metric_fields)
         self.callback(
+            [Output('task-switch', 'options'), Output('task-switch', 'value')],
+            Input('ds-switch', 'value')
+        ) (self.update_ds_changed)
+        self.callback(
             [Output('environments', 'options'), Output('environments', 'value'), Output('xaxis', 'options'), Output('xaxis', 'value'), Output('yaxis', 'options'),  Output('yaxis', 'value')],
             Input('task-switch', 'value')
-        ) (self.update_task)
+        ) (self.update_task_changed)
         self.callback(
             [Output(sl_id, prop) for sl_id in ['boundary-slider-x', 'boundary-slider-y'] for prop in ['min', 'max', 'value', 'marks']],
             [Input('xaxis', 'value'), Input('yaxis', 'value'), Input('boundaries-upload', 'contents'), Input('btn-calc-boundaries', 'n_clicks')]
@@ -60,7 +65,7 @@ class Visualization(dash.Dash):
         self.callback(Output('save-boundaries', 'data'), Input('btn-save-boundaries', 'n_clicks')) (self.save_boundaries)
         self.callback(Output('save-weights', 'data'), Input('btn-save-weights', 'n_clicks')) (self.save_weights)
         # offcanvas and modals
-        self.callback(Output("task-config", "is_open"), Input("btn-open-task-config", "n_clicks"), State("task-config", "is_open")) (toggle_element_visibility)
+        self.callback(Output("exp-config", "is_open"), Input("btn-open-exp-config", "n_clicks"), State("exp-config", "is_open")) (toggle_element_visibility)
         self.callback(Output("graph-config", "is_open"), Input("btn-open-graph-config", "n_clicks"), State("graph-config", "is_open")) (toggle_element_visibility)
         self.callback(Output('label-modal', 'is_open'), Input('model-label', "n_clicks"), State('label-modal', 'is_open')) (toggle_element_visibility)
 
@@ -78,7 +83,7 @@ class Visualization(dash.Dash):
         self.plot_data = {}
         for env in env_names:
             env_data = { 'names': [], 'ratings': [], 'x': [], 'y': [] }
-            for sum in self.summaries[self.task][env]:
+            for sum in self.summaries[self.dataset][self.task][env]:
                 env_data['names'].append(sum['name'])
                 env_data['ratings'].append(calculate_compound_rating(sum, rating_mode))
                 if scale_switch == 'index':
@@ -114,7 +119,7 @@ class Visualization(dash.Dash):
         self.yaxis = yaxis or self.yaxis
         values = []
         for axis in [self.xaxis, self.yaxis]:
-            all_ratings = [ sums[axis]['index'] for env_sums in self.summaries[self.task].values() for sums in env_sums if sums[axis]['index'] is not None ]
+            all_ratings = [ sums[axis]['index'] for env_sums in self.summaries[self.dataset][self.task].values() for sums in env_sums if sums[axis]['index'] is not None ]
             min_v = min(all_ratings)
             max_v = max(all_ratings)
             value = [entry[0] for entry in reversed(self.boundaries[axis][1:])]
@@ -134,8 +139,14 @@ class Visualization(dash.Dash):
         if update_necessary:
             self.summaries, self.boundaries, self.boundaries_real = rate_results(self.summaries, self.boundaries)
 
-    def update_task(self, type=None):
-        self.task = type or self.task
+    def update_ds_changed(self, ds=None):
+        self.dataset = ds or self.dataset
+        self.environments = {task: sorted(list(envs.keys())) for task, envs in self.summaries[self.dataset].items()}
+        tasks = [{"label": task.capitalize(), "value": task} for task in self.environments.keys()]
+        return tasks, tasks[0]['value']
+
+    def update_task_changed(self, task=None):
+        self.task = task or self.task
         avail_envs = [{"label": env, "value": env} for env in self.environments[self.task]]
         options = [{'label': AXIS_NAMES[env], 'value': env} for env in self.keys[self.task]]
         self.xaxis = 'inference_power_draw' if self.task == 'inference' else 'train_power_draw'
@@ -150,13 +161,13 @@ class Visualization(dash.Dash):
             rating_mode = 'mean' if rating_mode is None else rating_mode
             point = hover_data['points'][0]
             env_name = env_names[point['curveNumber']]
-            self.current['summary'] = self.summaries[self.task][env_name][point['pointNumber']]
-            self.current['logs'] = self.logs[self.task][env_name][point['pointNumber']]
+            self.current['summary'] = self.summaries[self.dataset][self.task][env_name][point['pointNumber']]
+            self.current['logs'] = self.logs[self.dataset][self.task][env_name][point['pointNumber']]
             self.current['label'] = EnergyLabel(self.current['summary'], rating_mode)
 
             model_table, metric_table = summary_to_html_tables(self.current['summary'], rating_mode)
             enc_label = self.current['label'].to_encoded_image()
-            link = MODEL_INFO[self.current['summary']['name']]['url']
+            link = load_model_info(self.dataset, self.current['summary']['name'])['url']
             open = False
         return model_table, metric_table,  enc_label, enc_label, link, open
 
@@ -168,7 +179,7 @@ class Visualization(dash.Dash):
         if upload is not None:
             weights = json.loads(base64.b64decode(upload.split(',')[-1]))
             self.summaries = update_weights(self.summaries, weights)
-        any_summary = list(self.summaries[self.task].values())[0][0]
+        any_summary = list(self.summaries[self.dataset][self.task].values())[0][0]
         return any_summary[self.xaxis]['weight'], any_summary[self.yaxis]['weight']
 
     def save_weights(self, save_weights_clicks=None):
@@ -197,4 +208,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     app = Visualization(args.directory, external_stylesheets=[dbc.themes.DARKLY])
-    app.run_server(debug=args.debug, host=args.host, port=args.port)# , host='0.0.0.0', port=8888)
+    app.run_server(debug=True, host=args.host, port=args.port)# , host='0.0.0.0', port=8888)

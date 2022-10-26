@@ -29,21 +29,25 @@ style_upload = dict({
 }, **style_btn_cfg)
 
 
-def create_page(tasks):
+def create_page(datasets):
     
     # task configuration (offcanvas)
     task_configuration = dbc.Offcanvas(
         html.Div(children=[
             html.Div(children=[
+                html.H2('Dataset:'),
+                dbc.RadioItems(id='ds-switch', value=datasets[0], options=[{'label': ds.capitalize(), 'value': ds} for ds in datasets],)
+            ]),
+            html.Div(children=[
                 html.H2('ML Task:'),
-                dbc.RadioItems(id='task-switch', value=tasks[0], options=[{'label': restype.capitalize(), 'value': restype} for restype in tasks],)
+                dbc.RadioItems(id='task-switch')
             ]),
             html.Div(children=[
                 html.H2('Environments:'),
                 dbc.Checklist(id='environments')
             ]),
         ]),
-        id="task-config", title="Task Configuration", is_open=False,
+        id="exp-config", title="Experiment Configuration", is_open=False,
     )
 
     # graph configuration (offcanvas)
@@ -132,7 +136,7 @@ def create_page(tasks):
         ], style={'height': '50px'}, className="g-1"),
         # config buttons
         dbc.Row([
-            dbc.Col(dbc.Button("Task Configuration", id="btn-open-task-config", size="lg", class_name='col-12'), width=6),
+            dbc.Col(dbc.Button("Task Configuration", id="btn-open-exp-config", size="lg", class_name='col-12'), width=6),
             dbc.Col(dbc.Button("Graph Configuration", id="btn-open-graph-config", size="lg", class_name='col-12'), width=6)
         ], style=dict(height='50px'), className="g-1")
     ], style={'padding': '0 0'})

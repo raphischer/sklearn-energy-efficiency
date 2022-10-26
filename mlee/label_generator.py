@@ -9,7 +9,7 @@ from reportlab.lib.colors import black, white
 import fitz # PyMuPDF
 import qrcode
 
-from mlee.ratings import calculate_compound_rating, load_results, rate_results, MODEL_INFO, TASK_TYPES, get_environment_key
+from mlee.ratings import calculate_compound_rating, load_results, rate_results, load_model_info, TASK_TYPES, get_environment_key
 
 
 C_SIZE = (1560, 2411)
@@ -79,8 +79,8 @@ def format_power_draw_sources(summary):
     return sources[:-1]
 
 
-def create_qr(model_name):
-    url = MODEL_INFO[model_name]['url']
+def create_qr(dataset, model_name):
+    url = load_model_info(dataset, model_name)['url']
     qr = qrcode.QRCode(
         version=1, box_size=1, border=0,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -116,7 +116,7 @@ class EnergyLabel(fitz.Document):
             canvas.drawInlineImage(os.path.join(PARTS_DIR, f"{icon}_{rating}.png"), posx, posy)
         # Final Rating & QR
         canvas.drawInlineImage(os.path.join(PARTS_DIR, f"Rating_{frate}.png"), POS_RATINGS[frate][0] * C_SIZE[0], POS_RATINGS[frate][1] * C_SIZE[1])
-        qr = create_qr(summary['name'])
+        qr = create_qr(summary['dataset'], summary['name'])
         draw_qr(canvas, qr, 0.825 * C_SIZE[0], 0.894 * C_SIZE[1], 200)
         # Add stroke to make even bigger letters
         canvas.setFillColor(black)

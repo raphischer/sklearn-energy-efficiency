@@ -1,6 +1,7 @@
 from genericpath import isdir
 import os
 import json
+from pyexpat import model
 from statistics import mean
 from matplotlib.pyplot import axis
 
@@ -17,7 +18,7 @@ HARDWARE_NAMES = {
     'Intel(R) Xeon(R) W-2155 CPU @ 3.30GHz': 'Xeon(R) W-2155',
     'AMD EPYC 7742 64-Core Processor': 'EPYC 7742'
 }
-MODEL_INFO = {
+IMAGENET_MODEL_INFO = {
     'ResNet50':          {'epochs': 90, 'url': 'https://arxiv.org/abs/1512.03385'}, # https://github.com/pytorch/vision/tree/main/references/classification
     'ResNet101':         {'epochs': 90, 'url': 'https://arxiv.org/abs/1512.03385'}, # https://github.com/pytorch/vision/tree/main/references/classification
     'ResNet152':         {'epochs': 90, 'url': 'https://arxiv.org/abs/1512.03385'}, # https://github.com/pytorch/vision/tree/main/references/classification
@@ -76,7 +77,6 @@ TASK_METRICS_CALCULATION = {        # boolean informs whether given task log is 
         'top5_val':                 (False, lambda model_val_log: calc_accuracy(model_val_log, top5=True))
     }
 }
-
 DEFAULT_REFERENCES = {
     'imagenet': 'ResNet101',
     'olivetti_faces': 'Random Forest',
@@ -84,6 +84,17 @@ DEFAULT_REFERENCES = {
     '20newsgroups_vectorized': 'Random Forest',
     'covtype': 'Random Forest'
 }
+
+
+def load_model_info(dataset, model_name):
+    try:
+        info = IMAGENET_MODEL_INFO[model_name]
+    except KeyError:
+        info = {
+            'epochs': None,
+            'url': 'https://lamarr-institute.org/' # TODO later update with paper URL
+        }
+    return info
 
 
 def load_backend_info(backend): # TODO access from train / infer scripts, and log info during experiment
@@ -213,13 +224,12 @@ def calc_time_train(res, per_epoch=False):
     val_per_epoch = res["duration"] / len(res["results"]["history"]["loss"])
     # val_per_epoch /= 3600 # s to h
     if not per_epoch:
-        val_per_epoch *= MODEL_INFO[res["config"]["model"]]['epochs']
+        val_per_epoch *= load_model_info(res['config']['dataset'], res["config"]["model"])['epochs']
     return val_per_epoch
 
 
 def calc_power_draw_train(res, per_epoch=False):
     power_draw = 0
-    return power_draw
     if res["monitoring_pynvml"] is not None:
         power_draw += res["monitoring_pynvml"]["total"]["total_power_draw"]
     if res["monitoring_pyrapl"] is not None:
@@ -233,7 +243,7 @@ def calc_power_draw_train(res, per_epoch=False):
     val_per_epoch = power_draw / len(res["results"]["history"]["loss"])
     # val_per_epoch /= 3600000 # Ws to kWh
     if not per_epoch:
-        val_per_epoch *= MODEL_INFO[res["config"]["model"]]['epochs']
+        val_per_epoch *= load_model_info(res['config']['dataset'], res["config"]["model"])['epochs']
     return val_per_epoch
 
 
@@ -356,6 +366,8 @@ def load_subresults(results_subdir, weighting):
                 logs[dataset][task_type][env_key] = {}
             if log['config']['model'] in logs[dataset][task_type][env_key]:
                 raise NotImplementedError(f'Already found results for {log["config"]["model"]} on {env_key}, averaging runs is not implemented (yet)!')
+            if 'dataset' not in log['config']: # TODO remove later (when ImageNet results have been rerun)
+                log['config']['dataset'] = 'imagenet'
             logs[dataset][task_type][env_key][log['config']['model']] = log
 
     # Exctract all relevant metadata
@@ -371,7 +383,7 @@ def load_subresults(results_subdir, weighting):
                 model_information = {
                     'environment': env_key,
                     'name': model_name,
-                    'dataset': 'ImageNet',
+                    'dataset': model_log['config']['dataset'],
                     'task_type': task_type.capitalize(),
                     'power_draw_sources': characterize_monitoring(model_log if 'monitoring_pynvml' in model_log else model_log['validation'])
                 }
