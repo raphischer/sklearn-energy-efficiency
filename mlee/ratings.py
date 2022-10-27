@@ -1,100 +1,45 @@
-from genericpath import isdir
 import os
 import json
-from pyexpat import model
-from statistics import mean
-from matplotlib.pyplot import axis
 
 import numpy as np
+
+from mlee.meta_info import HARDWARE_NAMES, TASK_TYPES, load_model_info, load_dataset_info
 
 
 HIGHER_BETTER = [
     'top1_val',
     'top5_val',
 ]
-HARDWARE_NAMES = {
-    'NVIDIA A100-SXM4-40GB': 'A100',
-    'Quadro RTX 5000': 'RTX 5000',
-    'Intel(R) Xeon(R) W-2155 CPU @ 3.30GHz': 'Xeon(R) W-2155',
-    'AMD EPYC 7742 64-Core Processor': 'EPYC 7742'
-}
-IMAGENET_MODEL_INFO = {
-    'ResNet50':          {'epochs': 90, 'url': 'https://arxiv.org/abs/1512.03385'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'ResNet101':         {'epochs': 90, 'url': 'https://arxiv.org/abs/1512.03385'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'ResNet152':         {'epochs': 90, 'url': 'https://arxiv.org/abs/1512.03385'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'VGG16':             {'epochs': 90, 'url': 'https://arxiv.org/abs/1409.1556'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'VGG19':             {'epochs': 90, 'url': 'https://arxiv.org/abs/1409.1556'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'EfficientNetB0':    {'epochs': None, 'url': 'https://arxiv.org/pdf/1905.11946.pdf'}, # no information on epochs
-    'EfficientNetB1':    {'epochs': None, 'url': 'https://arxiv.org/pdf/1905.11946.pdf'}, # no information on epochs
-    'EfficientNetB2':    {'epochs': None, 'url': 'https://arxiv.org/pdf/1905.11946.pdf'}, # no information on epochs
-    'EfficientNetB3':    {'epochs': None, 'url': 'https://arxiv.org/pdf/1905.11946.pdf'}, # no information on epochs
-    'EfficientNetB4':    {'epochs': None, 'url': 'https://arxiv.org/pdf/1905.11946.pdf'}, # no information on epochs
-    'EfficientNetB5':    {'epochs': None, 'url': 'https://arxiv.org/pdf/1905.11946.pdf'}, # no information on epochs
-    'EfficientNetB6':    {'epochs': None, 'url': 'https://arxiv.org/pdf/1905.11946.pdf'}, # no information on epochs
-    'EfficientNetB7':    {'epochs': None, 'url': 'https://arxiv.org/pdf/1905.11946.pdf'}, # no information on epochs
-    'RegNetX400MF':      {'epochs': 100, 'url': 'https://arxiv.org/abs/2003.13678'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'RegNetX32GF':       {'epochs': 100, 'url': 'https://arxiv.org/abs/2003.13678'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'RegNetX8GF':        {'epochs': 100, 'url': 'https://arxiv.org/abs/2003.13678'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'ResNext50':         {'epochs': 100, 'url': 'https://arxiv.org/abs/1611.05431'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'ResNext101':        {'epochs': 100, 'url': 'https://arxiv.org/abs/1611.05431'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'DenseNet121':       {'epochs': 90, 'url': 'https://arxiv.org/pdf/1608.06993'},
-    'DenseNet169':       {'epochs': 90, 'url': 'https://arxiv.org/pdf/1608.06993'},
-    'DenseNet201':       {'epochs': 90, 'url': 'https://arxiv.org/pdf/1608.06993'},
-    'Xception':          {'epochs': None, 'url': 'https://arxiv.org/abs/1610.02357'}, # no information on epochs
-    'InceptionResNetV2': {'epochs': 200, 'url': 'https://arxiv.org/abs/1602.07261'},
-    'InceptionV3':       {'epochs': 100, 'url': 'https://arxiv.org/abs/1512.00567'},
-    'NASNetMobile':      {'epochs': 100, 'url': 'https://arxiv.org/pdf/1707.07012'},
-    'MobileNetV2':       {'epochs': 300, 'url': 'https://arxiv.org/abs/1801.04381'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'MobileNetV3Small':  {'epochs': 600, 'url': 'https://arxiv.org/pdf/1905.02244'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'MobileNetV3Large':  {'epochs': 600, 'url': 'https://arxiv.org/pdf/1905.02244'}, # https://github.com/pytorch/vision/tree/main/references/classification
-    'QuickNetSmall':     {'epochs': 600, 'url': 'https://arxiv.org/abs/2011.09398'}, # https://github.com/larq/zoo/blob/main/larq_zoo/training/sota_experiments.py
-    'QuickNet':          {'epochs': 600, 'url': 'https://arxiv.org/abs/2011.09398'}, # https://github.com/larq/zoo/blob/main/larq_zoo/training/sota_experiments.py
-    'QuickNetLarge':     {'epochs': 600, 'url': 'https://arxiv.org/abs/2011.09398'} # https://github.com/larq/zoo/blob/main/larq_zoo/training/sota_experiments.py
-}
-TASK_TYPES = {
-    'infer': 'inference',
-    'train': 'training',
-}
 TASK_METRICS_CALCULATION = {        # boolean informs whether given task log is used (True), or if the corresponding inference log shall be used instead
     'inference': {
-        'parameters':               (True,  lambda model_log: calc_parameters(model_log)),
-        'gflops':                   (True,  lambda model_log: calc_gflops(model_log)),
-        'fsize':                    (True,  lambda model_log: calc_fsize(model_log)),
-        'inference_power_draw':     (True,  lambda model_log: calc_power_draw(model_log)),
-        'inference_time':           (True,  lambda model_log: calc_inf_time(model_log)),
-        'top1_val':                 (True,  lambda model_log: calc_accuracy(model_log)),
-        'top5_val':                 (True,  lambda model_log: calc_accuracy(model_log, top5=True))
+        'parameters':               (True,  lambda model_log, info: calc_parameters(model_log, info)),
+        'gflops':                   (True,  lambda model_log, info: calc_gflops(model_log, info)),
+        'fsize':                    (True,  lambda model_log, info: calc_fsize(model_log, info)),
+        'inference_power_draw':     (True,  lambda model_log, info: calc_power_draw(model_log, info)),
+        'inference_time':           (True,  lambda model_log, info: calc_inf_time(model_log, info)),
+        'top1_val':                 (True,  lambda model_log, info: calc_accuracy(model_log, info)),
+        'top5_val':                 (True,  lambda model_log, info: calc_accuracy(model_log, info, top5=True))
     },
     'training': {
-        'parameters':               (True,  lambda model_log: calc_parameters(model_log)),
-        'gflops':                   (True,  lambda model_log: calc_gflops(model_log)),
-        'fsize':                    (True,  lambda model_log: calc_fsize(model_log)),
+        'parameters':               (True,  lambda model_log, info: calc_parameters(model_log, info)),
+        'gflops':                   (True,  lambda model_log, info: calc_gflops(model_log, info)),
+        'fsize':                    (True,  lambda model_log, info: calc_fsize(model_log, info)),
         # 'train_power_draw_epoch':   (True,  lambda model_log: calc_power_draw_train(model_log, True)),
-        'train_power_draw':         (True,  lambda model_log: calc_power_draw_train(model_log)),
+        'train_power_draw':         (True,  lambda model_log, info: calc_power_draw_train(model_log, info)),
         # 'train_time_epoch':         (True,  lambda model_log: calc_time_train(model_log, True)),
-        'train_time':               (True,  lambda model_log: calc_time_train(model_log)),
-        'top1_val':                 (False, lambda model_val_log: calc_accuracy(model_val_log)),
-        'top5_val':                 (False, lambda model_val_log: calc_accuracy(model_val_log, top5=True))
+        'train_time':               (True,  lambda model_log, info: calc_time_train(model_log, info)),
+        'top1_val':                 (False, lambda model_val_log, info: calc_accuracy(model_val_log, info)),
+        'top5_val':                 (False, lambda model_val_log, info: calc_accuracy(model_val_log, info, top5=True))
     }
 }
 DEFAULT_REFERENCES = {
     'imagenet': 'ResNet101',
-    'olivetti_faces': 'Random Forest',
-    'lfw_people': 'Random Forest',
-    '20newsgroups_vectorized': 'Random Forest',
+    'olivetti_faces': 'Naive Bayes',
+    'lfw_people': 'Extra Random Forest',
+    '20newsgroups_vectorized': 'AdaBoost',
     'covtype': 'Random Forest'
 }
 
-
-def load_model_info(dataset, model_name):
-    try:
-        info = IMAGENET_MODEL_INFO[model_name]
-    except KeyError:
-        info = {
-            'epochs': None,
-            'url': 'https://scikit-learn.org/stable/user_guide.html' # TODO later update with paper URL
-        }
-    return info
 
 
 def load_backend_info(backend): # TODO access from train / infer scripts, and log info during experiment
@@ -176,36 +121,36 @@ def index_to_rating(index, scale):
     return 4 # worst rating if index does not fall in boundaries
 
 
-def calc_accuracy(res, train=False, top5=False):
+def calc_accuracy(res, model_information, train=False, top5=False):
     split = 'train' if train else 'validation'
     metric = 'top_5_accuracy' if top5 else 'accuracy'
     return res[split]['results']['metrics'][metric]
 
 
-def calc_parameters(res):
+def calc_parameters(res, model_information):
     if 'validation' in res:
         return res['validation']['results']['model']['params'] # * 1e-6
     return res['results']['model']['params'] # * 1e-6
 
 
-def calc_gflops(res):
+def calc_gflops(res, model_information):
     if 'validation' in res:
         # print(res['config']['backend'], res['execution_platform']['Node Name'], res['validation']['results']['model']['flops'] * 1e-9)
         return res['validation']['results']['model']['flops'] # * 1e-9
     return res['results']['model']['flops'] # * 1e-9
 
 
-def calc_fsize(res):
+def calc_fsize(res, model_information):
     if 'validation' in res:
         return res['validation']['results']['model']['fsize'] # * 1e-6
     return res['results']['model']['fsize'] # * 1e-6
 
 
-def calc_inf_time(res):
+def calc_inf_time(res, model_information):
     return res['validation']['duration'] # / 50000 * 1000
 
 
-def calc_power_draw(res):
+def calc_power_draw(res, model_information):
     # TODO add the RAPL measurements if available
     power_draw = 0
     if res['validation']["monitoring_pynvml"] is not None:
@@ -215,7 +160,7 @@ def calc_power_draw(res):
     return power_draw # / 50000
 
 
-def calc_time_train(res, per_epoch=False):
+def calc_time_train(res, model_information, per_epoch=False):
     if len(res['results']['history']) < 1:
         if per_epoch:
             return None
@@ -224,11 +169,11 @@ def calc_time_train(res, per_epoch=False):
     val_per_epoch = res["duration"] / len(res["results"]["history"]["loss"])
     # val_per_epoch /= 3600 # s to h
     if not per_epoch:
-        val_per_epoch *= load_model_info(res['config']['dataset'], res["config"]["model"])['epochs']
+        val_per_epoch *= model_information['model_info']['epochs']
     return val_per_epoch
 
 
-def calc_power_draw_train(res, per_epoch=False):
+def calc_power_draw_train(res, model_information, per_epoch=False):
     power_draw = 0
     if res["monitoring_pynvml"] is not None:
         power_draw += res["monitoring_pynvml"]["total"]["total_power_draw"]
@@ -243,7 +188,7 @@ def calc_power_draw_train(res, per_epoch=False):
     val_per_epoch = power_draw / len(res["results"]["history"]["loss"])
     # val_per_epoch /= 3600000 # Ws to kWh
     if not per_epoch:
-        val_per_epoch *= load_model_info(res['config']['dataset'], res["config"]["model"])['epochs']
+        val_per_epoch *= model_information['model_info']['epochs']
     return val_per_epoch
 
 
@@ -373,30 +318,32 @@ def load_subresults(results_subdir, weighting):
     # Exctract all relevant metadata
     summaries = {ds: {task: {} for task in TASK_TYPES.values()} for ds in logs.keys()}
     
-    for task_type, metrics in TASK_METRICS_CALCULATION.items():
-        for env_key, env_logs in logs[dataset][task_type].items():
-            if env_key not in summaries[dataset][task_type]:
-                summaries[dataset][task_type][env_key] = []
-        
-            # Calculate inference metrics for rating
-            for model_name, model_log in env_logs.items():
-                model_information = {
-                    'environment': env_key,
-                    'name': model_name,
-                    'dataset': model_log['config']['dataset'],
-                    'task_type': task_type.capitalize(),
-                    'power_draw_sources': characterize_monitoring(model_log if 'monitoring_pynvml' in model_log else model_log['validation'])
-                }
-                for metrics_key, (use_log, metrics_calculation) in metrics.items():
-                    try:
-                        if use_log:
-                            model_information[metrics_key] = {'value': metrics_calculation(model_log)}
-                        else: # calculate based on the inference log
-                            model_information[metrics_key] = {'value': metrics_calculation(logs[dataset]['inference'][env_key][model_name])}
-                    except Exception as e:
-                        model_information[metrics_key] = {'value': None}
-                    model_information[metrics_key]['weight'] = weighting[metrics_key]
-                summaries[dataset][task_type][env_key].append(model_information)
+    for dataset in logs.keys():
+        for task_type, metrics in TASK_METRICS_CALCULATION.items():
+            for env_key, env_logs in logs[dataset][task_type].items():
+                if env_key not in summaries[dataset][task_type]:
+                    summaries[dataset][task_type][env_key] = []
+            
+                # Calculate inference metrics for rating
+                for model_name, model_log in env_logs.items():
+                    model_information = {
+                        'environment': env_key,
+                        'name': model_name,
+                        'model_info': load_model_info(model_log['config']['dataset'], model_name),
+                        'dataset_info': load_dataset_info(model_log['config']['dataset']),
+                        'task_type': task_type.capitalize(),
+                        'power_draw_sources': characterize_monitoring(model_log if 'monitoring_pynvml' in model_log else model_log['validation'])
+                    }
+                    for metrics_key, (use_log, metrics_calculation) in metrics.items():
+                        try:
+                            if use_log:
+                                model_information[metrics_key] = {'value': metrics_calculation(model_log, model_information)}
+                            else: # calculate based on the inference log
+                                model_information[metrics_key] = {'value': metrics_calculation(logs[dataset]['inference'][env_key][model_name], model_information)}
+                        except Exception as e:
+                            model_information[metrics_key] = {'value': None}
+                        model_information[metrics_key]['weight'] = weighting[metrics_key]
+                    summaries[dataset][task_type][env_key].append(model_information)
 
     # Transform logs dict for one environment to list of logs
     for ds, ds_logs in logs.items():

@@ -46,7 +46,7 @@ def summary_to_html_tables(summary, rating_mode):
         html.Thead(html.Tr([html.Th("Task"), html.Th("Model Name"), html.Th("Environment"), html.Th("Final Rating")]))
     ]
     
-    task = f"{summary['task_type']} on {summary['dataset']}"
+    task = f"{summary['task_type']} on {summary['dataset_info']['name']}"
     info_row = [html.Tbody([html.Tr([html.Td(field) for field in [task, summary['name'], summary['environment'], final_rating]])])]
 
     metrics_header = [

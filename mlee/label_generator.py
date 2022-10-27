@@ -9,8 +9,7 @@ from reportlab.lib.colors import black, white
 import fitz # PyMuPDF
 import qrcode
 
-from mlee.ratings import calculate_compound_rating, load_results, rate_results, load_model_info, TASK_TYPES, get_environment_key
-
+from mlee.ratings import calculate_compound_rating, load_results, rate_results, TASK_TYPES, get_environment_key
 
 C_SIZE = (1560, 2411)
 POS_TEXT = {
@@ -18,7 +17,7 @@ POS_TEXT = {
     "name":                                     ('drawString',        90, '-Bold', .04,  .855, None),
     "task_type":                                ('drawString',        90, '',      .04,  .815, None),
     "environment":                              ('drawString',        68, '',      .04,  .42,  None),
-    "dataset":                                  ('drawRightString',   90, '',      .95,  .815, None),
+    "dataset_info":                             ('drawRightString',   90, '',      .95,  .815, None),
     "inference_power_draw":                     ('drawRightString',   68, '-Bold', .25,  .28,  None),
     "inference_time":                           ('drawRightString',   68, '-Bold', .75,  .25,  None),
     "parameters":                               ('drawRightString',   68, '-Bold', .744,  .05,  '{} M /'),
@@ -79,8 +78,7 @@ def format_power_draw_sources(summary):
     return sources[:-1]
 
 
-def create_qr(dataset, model_name):
-    url = load_model_info(dataset, model_name)['url']
+def create_qr(url):
     qr = qrcode.QRCode(
         version=1, box_size=1, border=0,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -116,7 +114,7 @@ class EnergyLabel(fitz.Document):
             canvas.drawInlineImage(os.path.join(PARTS_DIR, f"{icon}_{rating}.png"), posx, posy)
         # Final Rating & QR
         canvas.drawInlineImage(os.path.join(PARTS_DIR, f"Rating_{frate}.png"), POS_RATINGS[frate][0] * C_SIZE[0], POS_RATINGS[frate][1] * C_SIZE[1])
-        qr = create_qr(summary['dataset'], summary['name'])
+        qr = create_qr(summary['model_info']['url'])
         draw_qr(canvas, qr, 0.825 * C_SIZE[0], 0.894 * C_SIZE[1], 200)
         # Add stroke to make even bigger letters
         canvas.setFillColor(black)
@@ -137,9 +135,12 @@ class EnergyLabel(fitz.Document):
             elif key in summary:
                 # Dynamic text that receives content from summary
                 if isinstance(summary[key], dict):
-                    text = 'n.a.' if summary[key]["value"] is None else f'{summary[key]["value"]:4.2f}'[:4]
-                    if text.endswith('.'):
-                        text = text[:-1]
+                    if 'dataset' in key:
+                        text = summary[key]['name']
+                    else:
+                        text = 'n.a.' if summary[key]["value"] is None else f'{summary[key]["value"]:4.2f}'[:4]
+                        if text.endswith('.'):
+                            text = text[:-1]
                 else:
                     text = summary[key]
             else:

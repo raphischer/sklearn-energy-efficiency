@@ -12,7 +12,7 @@ from mlee.elex.pages import create_page
 from mlee.elex.util import summary_to_html_tables, toggle_element_visibility, AXIS_NAMES
 from mlee.elex.graphs import create_scatter_graph, create_bar_graph, add_rating_background
 from mlee.ratings import load_boundaries, save_boundaries, calculate_optimal_boundaries, save_weights, update_weights
-from mlee.ratings import load_results, rate_results, calculate_compound_rating, TASK_METRICS_CALCULATION, load_model_info
+from mlee.ratings import load_results, rate_results, calculate_compound_rating, TASK_METRICS_CALCULATION
 from mlee.label_generator import EnergyLabel
 
 
@@ -167,7 +167,7 @@ class Visualization(dash.Dash):
 
             model_table, metric_table = summary_to_html_tables(self.current['summary'], rating_mode)
             enc_label = self.current['label'].to_encoded_image()
-            link = load_model_info(self.dataset, self.current['summary']['name'])['url']
+            link = self.current['summary']['model_info']['url']
             open = False
         return model_table, metric_table,  enc_label, enc_label, link, open
 
