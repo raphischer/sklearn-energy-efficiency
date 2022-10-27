@@ -1,22 +1,30 @@
+from multiprocessing.sharedctypes import Value
+from shutil import ExecError
 import time
 import os
 import json
+from typing import Type
 
 import numpy as np
-from sklearn.metrics import accuracy_score
+from scipy.stats import uniform
+
+# sklearn data imports
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import train_test_split
 from sklearn import datasets
+from sklearn.impute import SimpleImputer
+from sklearn import preprocessing
+from sklearn.compose import ColumnTransformer
+
+# sklearn classifier imports
 from sklearn import linear_model
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
-from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, ExtraTreesClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn import preprocessing
-from scipy.stats import uniform
+from sklearn.metrics import accuracy_score
 
 from mlee.util import create_output_dir, PatchedJSONEncoder
 
@@ -26,31 +34,44 @@ from mlee.util import create_output_dir, PatchedJSONEncoder
 
 # REAL WORLD DATA
 sel_datasets = [
+    # Sklearn real-life datasets
     # 'olivetti_faces',
     # 'lfw_people',
+    'lfw_pairs',
     # '20newsgroups_vectorized',
-    'covtype',
-    # 'rcv1', # SPARSE PROBLEMS ValueError: sparse multilabel-indicator for y is not supported.
-    # 'kddcup99' # FILTER CATEGORICAL COLUMNS ValueError: could not convert string to float: b'tcp'
+    # 'covtype',
+    'kddcup99',
+    # 'rcv1', # TODO SPARSE PROBLEMS ValueError: sparse multilabel-indicator for y is not supported.
+
+    # Popular OpenML datasets
+    'credit-g',
+    'mnist_784',
+    'SpeedDating',
+    'phoneme',
+    'blood-transfusion-service-center'
 ]
 
 classifiers = {
     "Nearest Neighbors": (
         KNeighborsClassifier(algorithm='auto'),
         {
-            'n_neighbors': np.arange(1, 20)
+            'n_neighbors': [1, 3, 5, 10, 15, 20, 30, 50],
+            'algorithm': ['auto', 'ball_tree', 'kd_tree'],
+            'leaf_size': [10, 20, 30],
+            'p': [1, 2, 3]
+
         },
-        lambda clf: 0
+        lambda clf: clf.n_features_in_ * clf.n_samples_fit_ 
     ),
     
     "SVM": (
         SVC(), 
         {
             'kernel': ('linear', 'rbf', 'poly', 'sigmoid'),
-            'C': uniform(0, 10),
+            'C': uniform(0, 2),
             'gamma': ['scale', 'auto', 0.0001, 0.001, 0.01, 0.1]
         },
-        lambda clf: 0
+        lambda clf: sum([clf.class_weight_.size, clf.intercept_.size, clf.support_vectors_.size])
     ),
 
     "Random Forest": (
@@ -101,17 +122,17 @@ classifiers = {
         {
             'alpha': uniform(0, 2)
         },
-        lambda clf: 0
+        lambda clf: sum([clf.coef_.size, clf.intercept_.size])
     ),
 
     "Logistic Regression": (
         linear_model.LogisticRegression(max_iter=500),
         {
             'penalty': ['l1', 'l2', 'elasticnet', None],
-            'C': uniform(0, 10),
+            'C': uniform(0, 2),
             'solver': ['lbfgs', 'sag', 'saga'],
         },
-        lambda clf: 0
+        lambda clf: sum([clf.coef_.size, clf.intercept_.size])
     ),
 
     "SGD": (
@@ -121,15 +142,33 @@ classifiers = {
             "penalty": ['l2', 'l1', 'elasticnet'],
             'alpha': uniform(0, 2)
         },
-        lambda clf: 0
+        lambda clf: sum([clf.coef_.size, clf.intercept_.size])
     )
 }
 
 
-def label_encoding(data):
-    number = preprocessing.LabelEncoder()
-    data = number.fit_transform(data)
-    return data
+def label_encoding(X_train, X_test=None):
+    old_shape = X_train.shape
+    if X_test is None:
+        data = X_train
+    else:
+        data = np.concatenate([X_train, X_test])
+    categorical = []
+    if len(data.shape) > 1:
+        for column in range(data.shape[1]):
+            try: 
+                data[:, column] = data[:, column].astype(float)
+            except Exception:
+                categorical.append(column)
+                data[:, column] = preprocessing.LabelEncoder().fit_transform(data[:, column])
+    else:
+        data = preprocessing.LabelEncoder().fit_transform(data)
+    if X_test is None:
+        X_train = data
+    else:
+        X_train, X_test = np.split(data, [X_train.shape[0]])
+    assert(X_train.shape == old_shape)
+    return X_train, X_test, categorical
 
 
 def load_data(ds_name):
@@ -138,7 +177,10 @@ def load_data(ds_name):
     elif hasattr(datasets, f'load_{ds_name}'):
         ds_loader = getattr(datasets, f'load_{ds_name}')
     else:
-        raise RuntimeError(f'{ds_name} data could not be found!')
+        try:
+            ds_loader = lambda : datasets.fetch_openml(name=ds_name, as_frame=False)
+        except:
+            raise RuntimeError(f'{ds_name} data could not be found!')
     try:
         # some datasets come with prepared split
         ds_train = ds_loader(subset='train')
@@ -147,9 +189,44 @@ def load_data(ds_name):
         ds_test = ds_loader(subset='test')
         X_test = ds_test.data
         y_test = ds_test.target
+        if X_train.shape == X_test.shape:
+            raise TypeError # some data sets allow for specific subsets, but return the full dataset if subset is not selected well
     except TypeError:
         ds = ds_loader()
-        X_train, X_test, y_train, y_test = train_test_split(ds.data, ds.target)
+        X_train, X_test, y_train, y_test = train_test_split(ds.data, ds.target) # TODO use stratify?
+    # remove labels & rows that are only present in one split
+    train_labels = set(list(y_train))
+    test_labels = set(list(y_test))
+    for label in train_labels:
+        if label not in test_labels:
+            where = np.where(y_train != label)[0]
+            X_train, y_train = X_train[where], y_train[where]
+    for label in test_labels:
+        if label not in train_labels:
+            where = np.where(y_test != label)[0]
+            X_test, y_test = X_test[where], y_test[where]
+    # use label encoding for categorical features and labels
+    try:
+        X_train = X_train.astype(float)
+        X_test = X_test.astype(float)
+        categorical_columns = []
+    except ValueError:
+        X_train, X_test, categorical_columns = label_encoding(X_train, X_test)
+    try:
+        y_train = y_train.astype(int)
+        y_test = y_test.astype(int)
+    except ValueError:
+        y_train, y_test, _ = label_encoding(y_train, y_test)
+    # impute nan values
+    imp = SimpleImputer(missing_values=np.nan, strategy='median')
+    X_train = imp.fit_transform(X_train)
+    X_test = imp.fit_transform(X_test)
+    # onehot encoding for categorical features, standard-scale all non-categoricals
+    scaler = ColumnTransformer([
+        ('categorical', preprocessing.OneHotEncoder(), categorical_columns)
+    ], remainder=preprocessing.StandardScaler())
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
     return X_train, X_test, y_train, y_test
 
 
@@ -161,11 +238,11 @@ if __name__ == "__main__":
         X_train, X_test, y_train, y_test = load_data(ds_name)
 
         # #### TEST DATASET
-        # clf = RandomForestClassifier(n_estimators=200, max_depth=50, max_features='sqrt', n_jobs=n_jobs)
+        # clf = RandomForestClassifier()
         # clf.fit(X_train, y_train)
         # for split, X, y in [('train', X_train, y_train), ('test', X_test, y_test)]:
         #     pred = clf.predict(X)
-        #     print(f'KNN on {ds_name:<25} {str(X_train.shape):<13} {split:<6} accuracy {accuracy_score(y, pred)*100:6.2f}')
+        #     print(f'{ds_name:<25} {str(X_train.shape):<13} {split:<6} accuracy {accuracy_score(y, pred)*100:6.2f}')
 
 
 

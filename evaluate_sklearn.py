@@ -67,6 +67,7 @@ def evaluate_single(args):
     sys.stdout = Logger(os.path.join(output_dir, f'logfile.txt'))
 
     X_train, X_test, y_train, y_test, clf = init_model_and_data(args)
+
     monitoring = Monitoring(0, args.cpu_monitor_interval, output_dir)
     start_time = time.time()
     clf.fit(X_train, y_train)
@@ -129,7 +130,8 @@ def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description="Classification training with Tensorflow, based on PyTorch training", add_help=add_help)
 
     # data and model input
-    parser.add_argument("--dataset", default="olivetti_faces")
+    parser.add_argument("--dataset", default="covtype")
+
     parser.add_argument("--model", default="all")
     parser.add_argument("--hyperparameters", default="sklearn_hyperparameters/hyperparameters_2022_10_14_16_44_47")
     # output
@@ -145,15 +147,26 @@ def get_args_parser(add_help=True):
 if __name__ == "__main__":
     args = get_args_parser().parse_args()
     setattr(args, 'backend', 'sklearn')
-    if args.model == 'all':
-        clfs = []
-        for fname in os.listdir(args.hyperparameters):
-            match = re.match(r'hyperparameters__(.*)__(.*).json', fname)
-            if match and args.dataset == match.group(1):
-                clfs.append(match.group(2).replace('_', ' '))
-        print(f'Running evaluation on {args.dataset} for {clfs}')
-        for clf in clfs:
-            args.model = clf
-            evaluate_single(args)
+    if args.dataset == 'all':
+        datasets = set()
+        for fname in sorted(os.listdir(args.hyperparameters)):
+            match = re.match(r'hyperparameters__(.*)__.*.json', fname)
+            if match:
+                datasets.add(match.group(1))
     else:
-        evaluate_single(args)
+        datasets = [args.dataset]
+    all_models = args.model == 'all'
+    for dataset in datasets:
+        args.dataset = dataset
+        if all_models:
+            clfs = []
+            for fname in sorted(os.listdir(args.hyperparameters)):
+                match = re.match(r'hyperparameters__(.*)__(.*).json', fname)
+                if match and args.dataset == match.group(1):
+                    clfs.append(match.group(2).replace('_', ' '))
+            print(f'Running evaluation on {args.dataset} for {clfs}')
+            for clf in clfs:
+                args.model = clf
+                evaluate_single(args)
+        else:
+            evaluate_single(args)
