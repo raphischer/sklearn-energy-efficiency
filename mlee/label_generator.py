@@ -18,16 +18,16 @@ POS_TEXT = {
     "task_type":                                ('drawString',        90, '',      .04,  .815, None),
     "environment":                              ('drawString',        68, '',      .04,  .42,  None),
     "dataset_info":                             ('drawRightString',   90, '',      .95,  .815, None),
-    "inference_power_draw":                     ('drawRightString',   68, '-Bold', .25,  .28,  None),
-    "inference_time":                           ('drawRightString',   68, '-Bold', .75,  .25,  None),
-    "parameters":                               ('drawRightString',   68, '-Bold', .744,  .05,  '{} M /'),
-    "gflops":                                   ('drawString',        68, '-Bold', .77, .05,  '{} B'),
-    "train_time":                               ('drawRightString',   68, '-Bold', .7,  .25,  '{} /'),
-    "train_time_epoch":                         ('drawString',        68, '-Bold', .715, .25,  None),
-    "train_power_draw":                         ('drawRightString',   68, '-Bold', .2,  .28,  '{} /'),
-    "train_power_draw_epoch":                   ('drawString',        68, '-Bold', .215,  .28,  None),
-    "top1_val":                                 ('drawRightString',   68, '-Bold', .22,  .05,  '{} /'),
-    "top5_val":                                 ('drawString',        68, '-Bold', .235, .05,  None),
+    "inference power_draw":                     ('drawRightString',   68, '-Bold', .25,  .28,  None),
+    "inference time":                           ('drawRightString',   68, '-Bold', .75,  .25,  None),
+    "general parameters":                       ('drawRightString',   68, '-Bold', .744,  .05,  '{} M /'),
+    "general flops":                            ('drawString',        68, '-Bold', .77, .05,  '{} B'),
+    "training time":                               ('drawRightString',   68, '-Bold', .7,  .25,  '{} /'),
+    "training time_epoch":                         ('drawString',        68, '-Bold', .715, .25,  None),
+    "training power_draw":                         ('drawRightString',   68, '-Bold', .2,  .28,  '{} /'),
+    "training power_draw_epoch":                   ('drawString',        68, '-Bold', .215,  .28,  None),
+    "general top1_val":                         ('drawRightString',   68, '-Bold', .22,  .05,  '{} /'),
+    "general top5_val":                         ('drawString',        68, '-Bold', .235, .05,  None),
     # infos that are extracted via methods
     'format_power_draw_sources':                ('drawCentredString', 56, '',      .25,  .22,  None),
     # static infos, depending on $task
@@ -49,16 +49,16 @@ POS_TEXT = {
 POS_RATINGS = { char: (.66, y) for char, y in zip('ABCDE', reversed(np.linspace(.461, .727, 5))) }
 ICON_NAME_TO_METRIC = {
     'Inference': {
-        'time': 'inference_time',
-        'top': 'top1_val',
-        'power_draw': 'inference_power_draw',
-        'parameters': 'parameters'
+        'time': 'inference time',
+        'top': 'general top1_val',
+        'power_draw': 'inference power_draw',
+        'parameters': 'general parameters'
     },
     'Training': {
-        'time': 'train_time',
-        'top': 'top1_val',
-        'power_draw': 'train_power_draw',
-        'parameters': 'parameters'
+        'time': 'training time',
+        'top': 'general top1_val',
+        'power_draw': 'training power_draw',
+        'parameters': 'general parameters'
     }
 }
 ICON_POS = {

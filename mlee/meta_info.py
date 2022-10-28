@@ -47,11 +47,11 @@ TASK_TYPES = {
 }
 
 DATASET_INFO = {
-    'olivetti_faces':          {'name': 'Olivetti faces', 'url': ''},
-    '20newsgroups_vectorized': {'name': '20 Newsgroups', 'url': ''},
-    'lfw_people':              {'name': 'Faces in the Wild', 'url': ''},
-    'covtype':                 {'name': 'Covertype', 'url': ''},
-    'imagenet':                {'name': 'ImageNet', 'url': ''}
+    'olivetti_faces':          {'name': 'Olivetti faces',       'url': ''},
+    '20newsgroups_vectorized': {'name': '20 Newsgroups',        'url': ''},
+    'lfw_people':              {'name': 'Faces in the Wild',    'url': ''},
+    'covtype':                 {'name': 'Covertype',            'url': ''},
+    'imagenet':                {'name': 'ImageNet',             'url': ''}
 }
 
 

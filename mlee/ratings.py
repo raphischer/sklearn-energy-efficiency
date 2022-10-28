@@ -4,33 +4,25 @@ import json
 import numpy as np
 
 from mlee.meta_info import HARDWARE_NAMES, TASK_TYPES, load_model_info, load_dataset_info
+from mlee.unit_reformatting import CustomUnitReformater
 
 
 HIGHER_BETTER = [
     'top1_val',
     'top5_val',
 ]
-TASK_METRICS_CALCULATION = {        # boolean informs whether given task log is used (True), or if the corresponding inference log shall be used instead
-    'inference': {
-        'parameters':               (True,  lambda model_log, info: calc_parameters(model_log, info)),
-        'gflops':                   (True,  lambda model_log, info: calc_gflops(model_log, info)),
-        'fsize':                    (True,  lambda model_log, info: calc_fsize(model_log, info)),
-        'inference_power_draw':     (True,  lambda model_log, info: calc_power_draw(model_log, info)),
-        'inference_time':           (True,  lambda model_log, info: calc_inf_time(model_log, info)),
-        'top1_val':                 (True,  lambda model_log, info: calc_accuracy(model_log, info)),
-        'top5_val':                 (True,  lambda model_log, info: calc_accuracy(model_log, info, top5=True))
-    },
-    'training': {
-        'parameters':               (True,  lambda model_log, info: calc_parameters(model_log, info)),
-        'gflops':                   (True,  lambda model_log, info: calc_gflops(model_log, info)),
-        'fsize':                    (True,  lambda model_log, info: calc_fsize(model_log, info)),
-        # 'train_power_draw_epoch':   (True,  lambda model_log: calc_power_draw_train(model_log, True)),
-        'train_power_draw':         (True,  lambda model_log, info: calc_power_draw_train(model_log, info)),
-        # 'train_time_epoch':         (True,  lambda model_log: calc_time_train(model_log, True)),
-        'train_time':               (True,  lambda model_log, info: calc_time_train(model_log, info)),
-        'top1_val':                 (False, lambda model_val_log, info: calc_accuracy(model_val_log, info)),
-        'top5_val':                 (False, lambda model_val_log, info: calc_accuracy(model_val_log, info, top5=True))
-    }
+METRICS_INFO = {
+    'general parameters':     ('Parameters',                    'number',      lambda model_log, m_info: calc_parameters(model_log, m_info)),
+    'general flops':          ('Floating Point Operations',     'number',      lambda model_log, m_info: calc_flops(model_log, m_info)),
+    'general fsize':          ('Model File Size',               'bytes',       lambda model_log, m_info: calc_fsize(model_log, m_info)),
+    'general top1_val':       ('Top-1 Validation Accuracy',     'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info)),
+    'general top5_val':       ('Top-5 Validation Accuracy',     'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, top5=True)),
+    'inference power_draw':   ('Inference Power Draw / Batch',  'wattseconds', lambda model_log, m_info: calc_power_draw(model_log, m_info)),
+    'inference time':         ('Inference Time / Batch',        'seconds',     lambda model_log, m_info: calc_inf_time(model_log, m_info)),
+    # 'training power_draw_epoch': ('Training Power Draw per Epoch', 'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info, True)),
+    'training power_draw':       ('Full Training Power Draw',      'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info)),
+    # 'training time_epoch':       ('Training Time per Epoch',       'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info, True)),
+    'training time':             ('Full Training Time',            'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info))        
 }
 DEFAULT_REFERENCES = {
     'imagenet': 'ResNet101',
@@ -121,59 +113,56 @@ def index_to_rating(index, scale):
     return 4 # worst rating if index does not fall in boundaries
 
 
-def calc_accuracy(res, model_information, train=False, top5=False):
+def calc_accuracy(res, model_info, train=False, top5=False):
     split = 'train' if train else 'validation'
     metric = 'top_5_accuracy' if top5 else 'accuracy'
-    return res[split]['results']['metrics'][metric]
+    return res[split]['results']['metrics'][metric] * 100
 
 
-def calc_parameters(res, model_information):
+def calc_parameters(res, model_info):
     if 'validation' in res:
-        return res['validation']['results']['model']['params'] # * 1e-6
-    return res['results']['model']['params'] # * 1e-6
+        return res['validation']['results']['model']['params']
+    return res['results']['model']['params']
 
 
-def calc_gflops(res, model_information):
+def calc_flops(res, model_info):
     if 'validation' in res:
-        # print(res['config']['backend'], res['execution_platform']['Node Name'], res['validation']['results']['model']['flops'] * 1e-9)
-        return res['validation']['results']['model']['flops'] # * 1e-9
-    return res['results']['model']['flops'] # * 1e-9
+        return res['validation']['results']['model']['flops']
+    return res['results']['model']['flops']
 
 
-def calc_fsize(res, model_information):
+def calc_fsize(res, model_info):
     if 'validation' in res:
-        return res['validation']['results']['model']['fsize'] # * 1e-6
-    return res['results']['model']['fsize'] # * 1e-6
+        return res['validation']['results']['model']['fsize']
+    return res['results']['model']['fsize']
 
 
-def calc_inf_time(res, model_information):
-    return res['validation']['duration'] # / 50000 * 1000
+def calc_inf_time(res, model_info):
+    return res['validation']['duration'] # TODO / 50000
 
 
-def calc_power_draw(res, model_information):
-    # TODO add the RAPL measurements if available
+def calc_power_draw(res, model_info):
     power_draw = 0
     if res['validation']["monitoring_pynvml"] is not None:
         power_draw += res['validation']["monitoring_pynvml"]["total"]["total_power_draw"]
     if res['validation']["monitoring_pyrapl"] is not None:
         power_draw += res['validation']["monitoring_pyrapl"]["total"]["total_power_draw"]
-    return power_draw # / 50000
+    return power_draw # TODO/ 50000
 
 
-def calc_time_train(res, model_information, per_epoch=False):
+def calc_time_train(res, model_info, per_epoch=False):
     if len(res['results']['history']) < 1:
         if per_epoch:
             return None
         else:
             return res["duration"]
     val_per_epoch = res["duration"] / len(res["results"]["history"]["loss"])
-    # val_per_epoch /= 3600 # s to h
     if not per_epoch:
-        val_per_epoch *= model_information['model_info']['epochs']
+        val_per_epoch *= model_info['model_info']['epochs']
     return val_per_epoch
 
 
-def calc_power_draw_train(res, model_information, per_epoch=False):
+def calc_power_draw_train(res, model_info, per_epoch=False):
     power_draw = 0
     if res["monitoring_pynvml"] is not None:
         power_draw += res["monitoring_pynvml"]["total"]["total_power_draw"]
@@ -186,9 +175,8 @@ def calc_power_draw_train(res, model_information, per_epoch=False):
         else:
             return power_draw
     val_per_epoch = power_draw / len(res["results"]["history"]["loss"])
-    # val_per_epoch /= 3600000 # Ws to kWh
     if not per_epoch:
-        val_per_epoch *= model_information['model_info']['epochs']
+        val_per_epoch *= model_info['model_info']['epochs']
     return val_per_epoch
 
 
@@ -207,7 +195,7 @@ def characterize_monitoring(summary):
 def calculate_optimal_boundaries(summaries, quantiles):
     boundaries = {}
     for task, sum_task in summaries.items():
-        for metric in TASK_METRICS_CALCULATION[task].keys():
+        for metric in METRICS_INFO[task].keys():
             index_values = [ env_sum[metric]['index'] for env_sums in sum_task.values() for env_sum in env_sums if env_sum[metric]['index'] is not None ]
             try:
                 boundaries[metric] = np.quantile(index_values, quantiles)
@@ -318,13 +306,14 @@ def load_subresults(results_subdir, weighting):
     # Exctract all relevant metadata
     summaries = {ds: {task: {} for task in TASK_TYPES.values()} for ds in logs.keys()}
     
-    for dataset in logs.keys():
-        for task_type, metrics in TASK_METRICS_CALCULATION.items():
-            for env_key, env_logs in logs[dataset][task_type].items():
+    unit_fmt = CustomUnitReformater()
+    for dataset, ds_logs in logs.items():
+        for task_type, task_logs in ds_logs.items():
+            for env_key, env_logs in task_logs.items():
                 if env_key not in summaries[dataset][task_type]:
                     summaries[dataset][task_type][env_key] = []
             
-                # Calculate inference metrics for rating
+                # general model information
                 for model_name, model_log in env_logs.items():
                     model_information = {
                         'environment': env_key,
@@ -334,15 +323,20 @@ def load_subresults(results_subdir, weighting):
                         'task_type': task_type.capitalize(),
                         'power_draw_sources': characterize_monitoring(model_log if 'monitoring_pynvml' in model_log else model_log['validation'])
                     }
-                    for metrics_key, (use_log, metrics_calculation) in metrics.items():
-                        try:
-                            if use_log:
-                                model_information[metrics_key] = {'value': metrics_calculation(model_log, model_information)}
-                            else: # calculate based on the inference log
-                                model_information[metrics_key] = {'value': metrics_calculation(logs[dataset]['inference'][env_key][model_name], model_information)}
-                        except Exception as e:
-                            model_information[metrics_key] = {'value': None}
-                        model_information[metrics_key]['weight'] = weighting[metrics_key]
+                    # Calculate metrics for rating
+                    for metrics_key, (metric_name, unit, metrics_calculation) in METRICS_INFO.items():
+                        if metrics_key.split()[0] in ['general', task_type]:
+                            model_information[metrics_key] = {'name': metric_name, 'unit': unit, 'weight': weighting[metrics_key]}
+                            try:
+                                try:
+                                    value = metrics_calculation(model_log, model_information)
+                                except KeyError: # the top-1 accuracy needs to be extracted from the inference logs
+                                    model_inference_log = logs[dataset]['inference'][env_key][model_name]
+                                    value = metrics_calculation(model_inference_log, model_information)
+                                fmt_val, fmt_unit = unit_fmt.reformat_value(value, unit)
+                                model_information[metrics_key].update({'value': value, 'fmt_val': fmt_val, 'fmt_unit': fmt_unit})
+                            except Exception:
+                                model_information[metrics_key].update({'value': None, 'fmt_val': 'n.a.', 'fmt_unit': ''})
                     summaries[dataset][task_type][env_key].append(model_information)
 
     # Transform logs dict for one environment to list of logs
