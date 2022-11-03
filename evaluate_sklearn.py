@@ -101,7 +101,8 @@ def evaluate_single(args):
         'metrics': {},
         'start': start_time,
         'end': end_time,
-        'model': model_info
+        'model': model_info,
+        'data': {'shape': {'train': X_train.shape, 'test': X_test.shape}}
     }
     # calculating predictive quality metrics
     for score, func in classification_metrics.items():
