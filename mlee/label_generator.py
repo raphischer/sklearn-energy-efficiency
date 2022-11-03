@@ -9,8 +9,7 @@ from reportlab.lib.colors import black, white
 import fitz # PyMuPDF
 import qrcode
 
-from mlee.ratings import calculate_compound_rating, load_results, rate_results, load_model_info, TASK_TYPES, get_environment_key
-
+from mlee.ratings import calculate_compound_rating, load_results, rate_results, TASK_TYPES, get_environment_key
 
 C_SIZE = (1560, 2411)
 POS_TEXT = {
@@ -18,17 +17,17 @@ POS_TEXT = {
     "name":                                     ('drawString',        90, '-Bold', .04,  .855, None),
     "task_type":                                ('drawString',        90, '',      .04,  .815, None),
     "environment":                              ('drawString',        68, '',      .04,  .42,  None),
-    "dataset":                                  ('drawRightString',   90, '',      .95,  .815, None),
-    "inference_power_draw":                     ('drawRightString',   68, '-Bold', .25,  .28,  None),
-    "inference_time":                           ('drawRightString',   68, '-Bold', .75,  .25,  None),
-    "parameters":                               ('drawRightString',   68, '-Bold', .744,  .05,  '{} M /'),
-    "gflops":                                   ('drawString',        68, '-Bold', .77, .05,  '{} B'),
-    "train_time":                               ('drawRightString',   68, '-Bold', .7,  .25,  '{} /'),
-    "train_time_epoch":                         ('drawString',        68, '-Bold', .715, .25,  None),
-    "train_power_draw":                         ('drawRightString',   68, '-Bold', .2,  .28,  '{} /'),
-    "train_power_draw_epoch":                   ('drawString',        68, '-Bold', .215,  .28,  None),
-    "top1_val":                                 ('drawRightString',   68, '-Bold', .22,  .05,  '{} /'),
-    "top5_val":                                 ('drawString',        68, '-Bold', .235, .05,  None),
+    "dataset_info":                             ('drawRightString',   90, '',      .95,  .815, None),
+    "inference power_draw":                     ('drawRightString',   68, '-Bold', .25,  .28,  None),
+    "inference time":                           ('drawRightString',   68, '-Bold', .75,  .25,  None),
+    "general parameters":                       ('drawRightString',   68, '-Bold', .744,  .05,  '{} M /'),
+    "general flops":                            ('drawString',        68, '-Bold', .77, .05,  '{} B'),
+    "training time":                               ('drawRightString',   68, '-Bold', .7,  .25,  '{} /'),
+    "training time_epoch":                         ('drawString',        68, '-Bold', .715, .25,  None),
+    "training power_draw":                         ('drawRightString',   68, '-Bold', .2,  .28,  '{} /'),
+    "training power_draw_epoch":                   ('drawString',        68, '-Bold', .215,  .28,  None),
+    "general top1_val":                         ('drawRightString',   68, '-Bold', .22,  .05,  '{} /'),
+    "general top5_val":                         ('drawString',        68, '-Bold', .235, .05,  None),
     # infos that are extracted via methods
     'format_power_draw_sources':                ('drawCentredString', 56, '',      .25,  .22,  None),
     # static infos, depending on $task
@@ -50,16 +49,16 @@ POS_TEXT = {
 POS_RATINGS = { char: (.66, y) for char, y in zip('ABCDE', reversed(np.linspace(.461, .727, 5))) }
 ICON_NAME_TO_METRIC = {
     'Inference': {
-        'time': 'inference_time',
-        'top': 'top1_val',
-        'power_draw': 'inference_power_draw',
-        'parameters': 'parameters'
+        'time': 'inference time',
+        'top': 'general top1_val',
+        'power_draw': 'inference power_draw',
+        'parameters': 'general parameters'
     },
     'Training': {
-        'time': 'train_time',
-        'top': 'top1_val',
-        'power_draw': 'train_power_draw',
-        'parameters': 'parameters'
+        'time': 'training time',
+        'top': 'general top1_val',
+        'power_draw': 'training power_draw',
+        'parameters': 'general parameters'
     }
 }
 ICON_POS = {
@@ -79,8 +78,7 @@ def format_power_draw_sources(summary):
     return sources[:-1]
 
 
-def create_qr(dataset, model_name):
-    url = load_model_info(dataset, model_name)['url']
+def create_qr(url):
     qr = qrcode.QRCode(
         version=1, box_size=1, border=0,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -116,7 +114,7 @@ class EnergyLabel(fitz.Document):
             canvas.drawInlineImage(os.path.join(PARTS_DIR, f"{icon}_{rating}.png"), posx, posy)
         # Final Rating & QR
         canvas.drawInlineImage(os.path.join(PARTS_DIR, f"Rating_{frate}.png"), POS_RATINGS[frate][0] * C_SIZE[0], POS_RATINGS[frate][1] * C_SIZE[1])
-        qr = create_qr(summary['dataset'], summary['name'])
+        qr = create_qr(summary['model_info']['url'])
         draw_qr(canvas, qr, 0.825 * C_SIZE[0], 0.894 * C_SIZE[1], 200)
         # Add stroke to make even bigger letters
         canvas.setFillColor(black)
@@ -137,9 +135,12 @@ class EnergyLabel(fitz.Document):
             elif key in summary:
                 # Dynamic text that receives content from summary
                 if isinstance(summary[key], dict):
-                    text = 'n.a.' if summary[key]["value"] is None else f'{summary[key]["value"]:4.2f}'[:4]
-                    if text.endswith('.'):
-                        text = text[:-1]
+                    if 'dataset' in key:
+                        text = summary[key]['name']
+                    else:
+                        text = 'n.a.' if summary[key]["value"] is None else f'{summary[key]["value"]:4.2f}'[:4]
+                        if text.endswith('.'):
+                            text = text[:-1]
                 else:
                     text = summary[key]
             else:

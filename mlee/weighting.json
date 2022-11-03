@@ -1,13 +1,13 @@
 {
-    "parameters": 0.4,
-    "fsize": 0.4,
-    "gflops": 0.2,
-    "inference_power_draw": 0.7,
-    "inference_time": 0.3,
-    "top1_val": 0.8,
-    "top5_val": 0.2,
-    "train_power_draw_epoch": 0.2,
-    "train_power_draw": 0.7,
-    "train_time_epoch": 0.2,
-    "train_time": 0.3
+    "general parameters": 0.4,
+    "general fsize": 0.4,
+    "general flops": 0.2,
+    "inference power_draw": 0.7,
+    "inference time": 0.3,
+    "general top1_val": 0.8,
+    "general top5_val": 0.2,
+    "training power_draw_epoch": 0.2,
+    "training power_draw": 0.7,
+    "training time_epoch": 0.2,
+    "training time": 0.3
 }

@@ -9,11 +9,12 @@ from dash import dcc
 import dash_bootstrap_components as dbc
 
 from mlee.elex.pages import create_page
-from mlee.elex.util import summary_to_html_tables, toggle_element_visibility, AXIS_NAMES
+from mlee.elex.util import summary_to_html_tables, toggle_element_visibility
 from mlee.elex.graphs import create_scatter_graph, create_bar_graph, add_rating_background
 from mlee.ratings import load_boundaries, save_boundaries, calculate_optimal_boundaries, save_weights, update_weights
-from mlee.ratings import load_results, rate_results, calculate_compound_rating, TASK_METRICS_CALCULATION, load_model_info
+from mlee.ratings import load_results, rate_results, calculate_compound_rating, METRICS_INFO
 from mlee.label_generator import EnergyLabel
+from mlee.unit_reformatting import CustomUnitReformater
 
 
 # TODO make reference model selection available in Elex
@@ -23,16 +24,28 @@ class Visualization(dash.Dash):
 
     def __init__(self, results_directory, **kwargs):
         super().__init__(__name__, **kwargs)
+        # init some values
+        self.dataset, self.task, self.xaxis, self.yaxis = 'olivetti_faces', 'inference', 'general top1_val', 'inference power_draw'
+        self.current = { 'summary': None, 'label': None, 'logs': None }
+
         self.logs, summaries = load_results(results_directory)
         self.summaries, self.boundaries, self.boundaries_real = rate_results(summaries)
-        self.dataset, self.task, self.xaxis, self.yaxis = 'olivetti_faces', 'inference', 'top1_val', 'inference_power_draw'
         self.datasets = list(self.summaries.keys())
         self.environments = {task: sorted(list(envs.keys())) for task, envs in self.summaries[self.dataset].items()}
-        self.keys = {task: list(vals.keys()) for task, vals in TASK_METRICS_CALCULATION.items()}
-        self.current = { 'summary': None, 'label': None, 'logs': None }
+        # create a dict with all metrics for any dataset & task combination, and a map of metric unit symbols
+        self.metrics = {
+            ds: {
+                # each task has a dict with environments, each containing a list of models
+                task: [ m for m in list(self.summaries[ds][task].values())[0][0].keys() if m in METRICS_INFO ]
+                for task in self.summaries[ds].keys()
+            }
+            for ds in self.datasets
+        }
+        rmt = CustomUnitReformater()
+        self.unit_symbols = { metr: rmt.get_unit_symbol(METRICS_INFO[metr][1]) for metr in set().union(*[set(m) for ds_m in list(self.metrics.values()) for m in ds_m.values()]) }
+        
         # setup page and create callbacks
         self.layout = create_page(self.datasets)
-
         self.callback(
             [Output('x-weight', 'value'), Output('y-weight', 'value')],
             [Input('xaxis', 'value'), Input('yaxis', 'value'), Input('weights-upload', 'contents')]
@@ -93,12 +106,12 @@ class Visualization(dash.Dash):
                     env_data['x'].append(sum[self.xaxis]['value'] or 0)
                     env_data['y'].append(sum[self.yaxis]['value'] or 0)
             self.plot_data[env] = env_data
-        axis_names = [AXIS_NAMES[self.xaxis], AXIS_NAMES[self.yaxis]]
+        axis_names = [f'{METRICS_INFO[ax][0]} {self.unit_symbols[ax]}' for ax in [self.xaxis, self.yaxis]]
         if scale_switch == 'index':
             rating_pos = [self.boundaries[self.xaxis], self.boundaries[self.yaxis]]
             axis_names = [name.split('[')[0].strip() + ' Index' for name in axis_names]
         else:
-            rating_pos = [self.boundaries_real[self.task][env_names[0]][self.xaxis], self.boundaries_real[self.task][env_names[0]][self.yaxis]]
+            rating_pos = [self.boundaries_real[self.dataset][self.task][env_names[0]][self.xaxis], self.boundaries_real[self.dataset][self.task][env_names[0]][self.yaxis]]
         scatter = create_scatter_graph(self.plot_data, axis_names)
         add_rating_background(scatter, rating_pos, rating_mode)
         return scatter
@@ -148,9 +161,9 @@ class Visualization(dash.Dash):
     def update_task_changed(self, task=None):
         self.task = task or self.task
         avail_envs = [{"label": env, "value": env} for env in self.environments[self.task]]
-        options = [{'label': AXIS_NAMES[env], 'value': env} for env in self.keys[self.task]]
-        self.xaxis = 'inference_power_draw' if self.task == 'inference' else 'train_power_draw'
-        self.yaxis = 'top1_val'
+        options = [{'label': METRICS_INFO[metr][0], 'value': metr} for metr in self.metrics[self.dataset][self.task]]
+        self.xaxis = 'inference power_draw' if self.task == 'inference' else 'training power_draw'
+        self.yaxis = 'general top1_val'
         return avail_envs, [avail_envs[0]['value']], options, self.xaxis, options, self.yaxis
 
     def display_model(self, hover_data=None, env_names=None, rating_mode=None):
@@ -167,7 +180,7 @@ class Visualization(dash.Dash):
 
             model_table, metric_table = summary_to_html_tables(self.current['summary'], rating_mode)
             enc_label = self.current['label'].to_encoded_image()
-            link = load_model_info(self.dataset, self.current['summary']['name'])['url']
+            link = self.current['summary']['model_info']['url']
             open = False
         return model_table, metric_table,  enc_label, enc_label, link, open
 

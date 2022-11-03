@@ -8,6 +8,7 @@ dash-bootstrap-components
 reportlab
 PyMuPDF
 qrcode
+pint
 
 # Monitoring
 pynvml

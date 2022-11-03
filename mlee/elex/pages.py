@@ -1,12 +1,13 @@
-from sqlite3 import Row
 from dash import html, dcc
 import dash_bootstrap_components as dbc
+
+from mlee.meta_info import load_dataset_info
 
 
 def create_axis_option(x=True):
     xy = 'x' if x else 'y'
     content = [
-        html.Div(children=[dcc.Dropdown(id=f'{xy}axis')]),
+        html.Div(children=[dbc.Select(id=f'{xy}axis')]),
         html.Label('Weight:'),
         dcc.Input(id=f"{xy}-weight", type='number', min=0, max=1, step=0.1),
         html.Label('Boundaries:'),
@@ -36,7 +37,7 @@ def create_page(datasets):
         html.Div(children=[
             html.Div(children=[
                 html.H2('Dataset:'),
-                dbc.RadioItems(id='ds-switch', value=datasets[0], options=[{'label': ds.capitalize(), 'value': ds} for ds in datasets],)
+                dbc.Select(id='ds-switch', value=datasets[0], options=[{'label': load_dataset_info(ds)['name'], 'value': ds} for ds in datasets],)
             ]),
             html.Div(children=[
                 html.H2('ML Task:'),
