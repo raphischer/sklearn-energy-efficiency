@@ -7,6 +7,7 @@ from typing import Type
 
 import numpy as np
 from scipy.stats import uniform
+from scipy import sparse
 
 # sklearn data imports
 from sklearn.model_selection import RandomizedSearchCV
@@ -37,18 +38,18 @@ sel_datasets = [
     # Sklearn real-life datasets
     # 'olivetti_faces',
     # 'lfw_people',
-    'lfw_pairs',
+    # 'lfw_pairs',
     # '20newsgroups_vectorized',
     # 'covtype',
     'kddcup99',
     # 'rcv1', # TODO SPARSE PROBLEMS ValueError: sparse multilabel-indicator for y is not supported.
 
     # Popular OpenML datasets
-    'credit-g',
-    'mnist_784',
-    'SpeedDating',
-    'phoneme',
-    'blood-transfusion-service-center'
+    # 'credit-g',
+    # 'mnist_784',
+    # 'SpeedDating',
+    # 'phoneme',
+    # 'blood-transfusion-service-center'
 ]
 
 classifiers = {
@@ -157,7 +158,8 @@ def label_encoding(X_train, X_test=None):
     if len(data.shape) > 1:
         for column in range(data.shape[1]):
             try: 
-                data[:, column] = data[:, column].astype(float)
+                float_col = data[:, column].astype(float)
+                data[:, column] = float_col
             except Exception:
                 categorical.append(column)
                 data[:, column] = preprocessing.LabelEncoder().fit_transform(data[:, column])
@@ -221,12 +223,15 @@ def load_data(ds_name):
     imp = SimpleImputer(missing_values=np.nan, strategy='median')
     X_train = imp.fit_transform(X_train)
     X_test = imp.fit_transform(X_test)
+    # identify the unique categorical values of each column
+    cat_vals = [np.array(sorted(set(np.concatenate([np.unique(X_train[:, col]), np.unique(X_test[:, col])])))) for col in categorical_columns]
     # onehot encoding for categorical features, standard-scale all non-categoricals
-    scaler = ColumnTransformer([
-        ('categorical', preprocessing.OneHotEncoder(), categorical_columns)
-    ], remainder=preprocessing.StandardScaler())
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
+    if not sparse.issparse(X_train):
+        scaler = ColumnTransformer([
+            ('categorical', preprocessing.OneHotEncoder(categories=cat_vals), categorical_columns)
+        ], remainder=preprocessing.StandardScaler())
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
     return X_train, X_test, y_train, y_test
 
 

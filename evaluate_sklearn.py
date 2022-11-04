@@ -112,6 +112,8 @@ def evaluate_single(args):
             results['metrics'][score] = func(y_test, y_pred)
     if hasattr(clf, 'predict_proba'):
         y_proba = clf.predict_proba(X_test)
+        if clf.classes_.size == 2:
+            y_proba = y_proba[:, 1]
         results['metrics']['top_5_accuracy'] = top_k_accuracy_score(y_test, y_proba, k=5, labels=clf.classes_)
     # write results
     with open(os.path.join(output_dir, f'{split}_results.json'), 'w') as rf:
@@ -131,13 +133,13 @@ def get_args_parser(add_help=True):
     parser = argparse.ArgumentParser(description="Classification training with Tensorflow, based on PyTorch training", add_help=add_help)
 
     # data and model input
-    parser.add_argument("--dataset", default="covtype")
+    parser.add_argument("--dataset", default="all")
 
     parser.add_argument("--model", default="all")
     parser.add_argument("--hyperparameters", default="sklearn_hyperparameters/hyperparameters_2022_10_14_16_44_47")
     # output
     parser.add_argument("--output-dir", default='logs/sklearn', type=str, help="path to save outputs")
-    parser.add_argument("--cpu-monitor-interval", default=.0001, type=float, help="Setting to > 0 activates CPU profiling every X seconds")
+    parser.add_argument("--cpu-monitor-interval", default=.005, type=float, help="Setting to > 0 activates CPU profiling every X seconds")
 
     # randomization and hardware
     parser.add_argument("--seed", type=int, default=42, help="Seed to use (if -1, uses and logs random seed)")
@@ -167,7 +169,10 @@ if __name__ == "__main__":
                     clfs.append(match.group(2).replace('_', ' '))
             print(f'Running evaluation on {args.dataset} for {clfs}')
             for clf in clfs:
-                args.model = clf
-                evaluate_single(args)
+                try:
+                    args.model = clf
+                    evaluate_single(args)
+                except Exception as e:
+                    print('ERROR - ', e)
         else:
             evaluate_single(args)
