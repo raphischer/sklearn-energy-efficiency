@@ -1,4 +1,0 @@
-{
-    "Name": "TensorFlow",
-    "Packages": ["tensorflow", "tensorflow_datasets", "larq", "larq_zoo", "packaging"]
-}
