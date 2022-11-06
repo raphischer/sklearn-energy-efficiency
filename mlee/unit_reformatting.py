@@ -17,6 +17,11 @@ class CustomUnitReformater(pint.UnitRegistry):
 
     def reformat_value(self, value, unit_from=None, unit_to=None):
         symbol = ''
+        for unit, short_unit in SPECIAL_SYMBOLS.items(): # remap num and percent units
+            if short_unit == unit_from:
+                unit_from = unit
+            if short_unit == unit_to:
+                unit_to = unit
         # run unit conversion, else only format
         if unit_from is not None:
             try:
