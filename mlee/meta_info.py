@@ -47,11 +47,14 @@ TASK_TYPES = {
 }
 
 DATASET_INFO = {
-    'olivetti_faces':          {'name': 'Olivetti faces',       'url': ''},
-    '20newsgroups_vectorized': {'name': '20 Newsgroups',        'url': ''},
-    'lfw_people':              {'name': 'Faces in the Wild',    'url': ''},
-    'covtype':                 {'name': 'Covertype',            'url': ''},
-    'imagenet':                {'name': 'ImageNet',             'url': ''}
+    'olivetti_faces':                   {'name': 'Olivetti faces',       'url': ''},
+    '20newsgroups_vectorized':          {'name': '20 Newsgroups',        'url': ''},
+    'lfw_people':                       {'name': 'LFW People',           'url': ''},
+    'lfw_pairs':                        {'name': 'LFW Pairs',            'url': ''},
+    'covtype':                          {'name': 'Covertype',            'url': ''},
+    'credit-g':                         {'name': 'German Credit',        'url': ''},
+    'mnist_784':                        {'name': 'MNIST',                'url': ''}, 
+    'blood-transfusion-service-center': {'name': 'Blood Transfusion SC', 'url': 'https://www.openml.org/search?type=data&sort=runs&id=1464&status=active'}
 }
 
 

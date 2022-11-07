@@ -8,8 +8,8 @@ from mlee.unit_reformatting import CustomUnitReformater
 
 
 HIGHER_BETTER = [
-    'top1_val',
-    'top5_val',
+    'general top1_val',
+    'general top5_val',
 ]
 METRICS_INFO = {
     'general parameters':     ('Parameters',                    'number',      lambda model_log, m_info: calc_parameters(model_log, m_info)),
@@ -17,19 +17,26 @@ METRICS_INFO = {
     'general fsize':          ('Model File Size',               'bytes',       lambda model_log, m_info: calc_fsize(model_log, m_info)),
     'general top1_val':       ('Top-1 Validation Accuracy',     'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info)),
     'general top5_val':       ('Top-5 Validation Accuracy',     'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, top5=True)),
-    'inference power_draw':   ('Inference Power Draw / Batch',  'wattseconds', lambda model_log, m_info: calc_power_draw(model_log, m_info)),
-    'inference time':         ('Inference Time / Batch',        'seconds',     lambda model_log, m_info: calc_inf_time(model_log, m_info)),
+    'inference power_draw':   ('Power Draw / Sample',  'wattseconds', lambda model_log, m_info: calc_power_draw(model_log, m_info)),
+    'inference time':         ('Time / Sample',        'seconds',     lambda model_log, m_info: calc_inf_time(model_log, m_info)),
     # 'training power_draw_epoch': ('Training Power Draw per Epoch', 'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info, True)),
-    'training power_draw':       ('Full Training Power Draw',      'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info)),
+    'training power_draw':       ('Total Power Draw',      'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info)),
     # 'training time_epoch':       ('Training Time per Epoch',       'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info, True)),
-    'training time':             ('Full Training Time',            'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info))        
+    'training time':             ('Total Time',            'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info))        
 }
 DEFAULT_REFERENCES = {
     'imagenet': 'ResNet101',
-    'olivetti_faces': 'Naive Bayes',
+    'olivetti_faces': 'SGD',
     'lfw_people': 'Extra Random Forest',
-    '20newsgroups_vectorized': 'AdaBoost',
-    'covtype': 'Random Forest'
+    '20newsgroups_vectorized': 'Random Forest',
+    'covtype': 'AdaBoost',
+    'lfw_pairs': 'Random Forest',
+    'kddcup99': 'Nearest',
+    'credit-g': 'Extra Random Forest',
+    'mnist_784': 'Random Forest',
+    'SpeedDating': 'Extra Random Forest',
+    'phoneme': 'SGD',
+    'blood-transfusion-service-center': 'SGD'
 }
 
 

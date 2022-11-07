@@ -24,8 +24,9 @@ class Visualization(dash.Dash):
 
     def __init__(self, results_directory, **kwargs):
         super().__init__(__name__, **kwargs)
+        self.dark_mode = 'external_stylesheets' in kwargs and 'darkly' in kwargs['external_stylesheets'][0] # TODO add other darkmode themes
         # init some values
-        self.dataset, self.task, self.xaxis, self.yaxis = 'olivetti_faces', 'inference', 'general top1_val', 'inference power_draw'
+        self.dataset, self.task, self.xaxis, self.yaxis, self.rating_mode = 'olivetti_faces', 'inference', 'general top1_val', 'inference power_draw', 'optimistic median'
         self.current = { 'summary': None, 'label': None, 'logs': None }
 
         self.logs, summaries = load_results(results_directory)
@@ -92,13 +93,13 @@ class Visualization(dash.Dash):
             self.update_boundaries(slider_args)
         env_names = self.environments[self.task] if env_names is None else env_names
         scale_switch = 'index' if scale_switch is None else scale_switch
-        rating_mode = 'mean' if rating_mode is None else rating_mode
+        self.rating_mode = self.rating_mode if rating_mode is None else rating_mode
         self.plot_data = {}
         for env in env_names:
             env_data = { 'names': [], 'ratings': [], 'x': [], 'y': [] }
             for sum in self.summaries[self.dataset][self.task][env]:
                 env_data['names'].append(sum['name'])
-                env_data['ratings'].append(calculate_compound_rating(sum, rating_mode))
+                env_data['ratings'].append(calculate_compound_rating(sum, self.rating_mode))
                 if scale_switch == 'index':
                     env_data['x'].append(sum[self.xaxis]['index'] or 0)
                     env_data['y'].append(sum[self.yaxis]['index'] or 0)
@@ -112,12 +113,12 @@ class Visualization(dash.Dash):
             axis_names = [name.split('[')[0].strip() + ' Index' for name in axis_names]
         else:
             rating_pos = [self.boundaries_real[self.dataset][self.task][env_names[0]][self.xaxis], self.boundaries_real[self.dataset][self.task][env_names[0]][self.yaxis]]
-        scatter = create_scatter_graph(self.plot_data, axis_names)
-        add_rating_background(scatter, rating_pos, rating_mode)
+        scatter = create_scatter_graph(self.plot_data, axis_names, dark_mode=self.dark_mode)
+        add_rating_background(scatter, rating_pos, self.rating_mode, dark_mode=self.dark_mode)
         return scatter
 
-    def update_bars_graph(self, scatter_graph):
-        bars = create_bar_graph(self.plot_data)
+    def update_bars_graph(self, scatter_graph=None, discard_y_axis=False):
+        bars = create_bar_graph(self.plot_data, self.dark_mode, discard_y_axis)
         return bars
 
     def update_boundary_sliders(self, xaxis=None, yaxis=None, uploaded_boundaries=None, calculated_boundaries=None):
@@ -171,14 +172,14 @@ class Visualization(dash.Dash):
             self.current = { 'summary': None, 'label': None, 'logs': None }
             model_table, metric_table,  enc_label, link, open = None, None, None, "/", True
         else:
-            rating_mode = 'mean' if rating_mode is None else rating_mode
+            self.rating_mode = self.rating_mode if rating_mode is None else rating_mode
             point = hover_data['points'][0]
             env_name = env_names[point['curveNumber']]
             self.current['summary'] = self.summaries[self.dataset][self.task][env_name][point['pointNumber']]
             self.current['logs'] = self.logs[self.dataset][self.task][env_name][point['pointNumber']]
-            self.current['label'] = EnergyLabel(self.current['summary'], rating_mode)
+            self.current['label'] = EnergyLabel(self.current['summary'], self.rating_mode)
 
-            model_table, metric_table = summary_to_html_tables(self.current['summary'], rating_mode)
+            model_table, metric_table = summary_to_html_tables(self.current['summary'], self.rating_mode)
             enc_label = self.current['label'].to_encoded_image()
             link = self.current['summary']['model_info']['url']
             open = False
