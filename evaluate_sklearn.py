@@ -28,7 +28,7 @@ classification_metrics = {
 
 def init_model_and_data(args):
     X_train, X_test, y_train, y_test = load_data(args.dataset)
-    clf = classifiers[args.model][0]   
+    clf = classifiers[args.model][1]
     fname = os.path.join(args.hyperparameters, f'hyperparameters__{args.dataset}__{args.model.replace(" ", "_")}.json')
     with open(fname, 'r') as hyperf:
         hyper_content = json.load(hyperf)
@@ -73,7 +73,7 @@ def evaluate_single(args):
     clf.fit(X_train, y_train)
     end_time = time.time()
     monitoring.stop()
-    n_params = classifiers[args.model][2](clf)
+    n_params = classifiers[args.model][3](clf)
     model_info = finalize_model(clf, output_dir, n_params)
 
     results = {
@@ -138,7 +138,7 @@ def get_args_parser(add_help=True):
     parser.add_argument("--dataset", default="all")
 
     parser.add_argument("--model", default="all")
-    parser.add_argument("--hyperparameters", default="sklearn_hyperparameters/hyperparameters_2022_10_14_16_44_47")
+    parser.add_argument("--hyperparameters", default="sklearn_hyperparameters/hyperparameters_2022_11_07_16_44_47")
     # output
     parser.add_argument("--output-dir", default='logs/sklearn', type=str, help="path to save outputs")
     parser.add_argument("--cpu-monitor-interval", default=.005, type=float, help="Setting to > 0 activates CPU profiling every X seconds")
@@ -158,6 +158,7 @@ if __name__ == "__main__":
             match = re.match(r'hyperparameters__(.*)__.*.json', fname)
             if match:
                 datasets.add(match.group(1))
+        datasets = sorted(list(datasets))
     else:
         datasets = [args.dataset]
     all_models = args.model == 'all'
@@ -171,10 +172,10 @@ if __name__ == "__main__":
                     clfs.append(match.group(2).replace('_', ' '))
             print(f'Running evaluation on {args.dataset} for {clfs}')
             for clf in clfs:
-                try:
-                    args.model = clf
-                    evaluate_single(args)
-                except Exception as e:
-                    print('ERROR - ', e)
+                # try:
+                args.model = clf
+                evaluate_single(args)
+                # except Exception as e:
+                #     print('ERROR - ', e)
         else:
             evaluate_single(args)
