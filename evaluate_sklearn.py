@@ -115,6 +115,8 @@ def evaluate_single(args):
         if clf.classes_.size == 2:
             y_proba = y_proba[:, 1]
         results['metrics']['top_5_accuracy'] = top_k_accuracy_score(y_test, y_proba, k=5, labels=clf.classes_)
+    else:
+        results['metrics']['top_5_accuracy'] = results['metrics']['top_1_accuracy'] # top5 is bounded by top1
     # write results
     with open(os.path.join(output_dir, f'{split}_results.json'), 'w') as rf:
         json.dump(results, rf, indent=4, cls=PatchedJSONEncoder)
