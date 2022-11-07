@@ -1,0 +1,54 @@
+{
+    "mean_fit_time": [
+        0
+    ],
+    "std_fit_time": [
+        0
+    ],
+    "mean_score_time": [
+        0
+    ],
+    "std_score_time": [
+        0
+    ],
+    "param_C": [
+        0.8473095986778094
+    ],
+    "param_gamma": [
+        0.1
+    ],
+    "param_kernel": [
+        "poly"
+    ],
+    "params": [
+        {
+            "C": 0.8473095986778094,
+            "gamma": 0.1,
+            "kernel": "poly"
+        }
+    ],
+    "split0_test_score": [
+        0.865665046398586
+    ],
+    "split1_test_score": [
+        0.8718515245249668
+    ],
+    "split2_test_score": [
+        0.8652231551038444
+    ],
+    "split3_test_score": [
+        0.8687582854617764
+    ],
+    "split4_test_score": [
+        0.8687002652519894
+    ],
+    "mean_test_score": [
+        0.8680396553482327
+    ],
+    "std_test_score": [
+        0.0024105859286053504
+    ],
+    "rank_test_score": [
+        1
+    ]
+}
