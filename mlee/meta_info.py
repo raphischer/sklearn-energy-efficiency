@@ -54,7 +54,7 @@ DATASET_INFO = {
     'covtype':                          {'name': 'Covertype',            'url': ''},
     'credit-g':                         {'name': 'German Credit',        'url': ''},
     'mnist_784':                        {'name': 'MNIST',                'url': ''}, 
-    'blood-transfusion-service-center': {'name': 'Blood Transfusion SC', 'url': 'https://www.openml.org/search?type=data&sort=runs&id=1464&status=active'}
+    'blood-transfusion-service-center': {'name': 'Blood Transf. SC',     'url': 'https://www.openml.org/search?type=data&sort=runs&id=1464&status=active'}
 }
 
 

@@ -55,14 +55,18 @@ for ds in app.datasets:
     best_mod_ind = np.argsort(res_acc)[-1]
     best_mod, rating = results[best_mod_ind], res_ratings[best_mod_ind]
 
-    mod_name_cc = r'\colorbox{R' + RATINGS[rating] + r'}{' + best_mod['name'] + '}'
+    mod_name_cc = r'\colorbox{R' + RATINGS[rating] + r'}{' + RATINGS[rating] + '} ' + best_mod['name']
     model_res = [load_dataset_info(ds)['name'], mod_name_cc]
     val_ind_txt = []
     for m_i, (metr, (name, unit_to)) in enumerate(TABLE_NAMES.items()):
         final_text = final_text.replace(f'$METR{m_i + 1}', name)
         val_ind_txt.append(f'[{unit_to}] & Index')
         ind = r'\colorbox{R' + RATINGS[best_mod[metr]['rating']] + r'}{' + f"{best_mod[metr]['index']:5.3f}"[:5] + '}'
-        val = CUR.reformat_value(best_mod[metr]['value'], METRICS_INFO[metr][1], unit_to)[0][:5]
+        val = CUR.reformat_value(best_mod[metr]['value'], METRICS_INFO[metr][1], unit_to)[0]
+        if '+' not in val:
+            val = val[:5]
+        elif '+0' in val:
+            val = val.replace('+0', '+')
         model_res.extend([val, ind])
     final_text = final_text.replace('$VALIND', ' & '.join(val_ind_txt))
     rows.append(' & '.join(model_res) + r' \\')
