@@ -116,7 +116,7 @@ def evaluate_single(args):
             y_proba = y_proba[:, 1]
         results['metrics']['top_5_accuracy'] = top_k_accuracy_score(y_test, y_proba, k=5, labels=clf.classes_)
     else:
-        results['metrics']['top_5_accuracy'] = results['metrics']['top_1_accuracy'] # top5 is bounded by top1
+        results['metrics']['top_5_accuracy'] = results['metrics']['accuracy'] # top5 is bounded by top1
     # write results
     with open(os.path.join(output_dir, f'{split}_results.json'), 'w') as rf:
         json.dump(results, rf, indent=4, cls=PatchedJSONEncoder)
@@ -172,10 +172,10 @@ if __name__ == "__main__":
                     clfs.append(match.group(2).replace('_', ' '))
             print(f'Running evaluation on {args.dataset} for {clfs}')
             for clf in clfs:
-                # try:
-                args.model = clf
-                evaluate_single(args)
-                # except Exception as e:
-                #     print('ERROR - ', e)
+                try:
+                    args.model = clf
+                    evaluate_single(args)
+                except Exception as e:
+                    print('ERROR - ', e)
         else:
             evaluate_single(args)
