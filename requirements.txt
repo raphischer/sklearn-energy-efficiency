@@ -1,5 +1,6 @@
 # General
 numpy
+scikit-learn
 
 # ELEx
 dash
@@ -11,6 +12,7 @@ qrcode
 pint
 
 # Monitoring
+pypapi # dont forget apt install papi-tools
 pynvml
 psutil
 pyrapl # (clone https://github.com/powerapi-ng/pyRAPL and install locally)

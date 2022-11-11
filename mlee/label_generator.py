@@ -166,14 +166,13 @@ if __name__ == "__main__":
     parser.add_argument("--model", "-m", default="ResNet101", type=str)
     parser.add_argument("--environment", "-e", default='A100 x8 - TensorFlow 2.8.0', type=str)
     parser.add_argument("--directory", "-d", default='results', type=str, help="Directory with .json result files")
-    parser.add_argument("--reference", "-r", default='ResNet101', type=str, help="Reference model to use for index scoring")
     parser.add_argument("--filename", "-f", default="", type=str, help="name of json logfile")
     parser.add_argument("--output", "-o", default="label.pdf", type=str, help="name of output file")
       
     args = parser.parse_args()
 
     _, summaries = load_results(args.directory)
-    summaries, _, _ = rate_results(summaries, args.reference)
+    summaries, _, _ = rate_results(summaries)
 
     # generate label for given filename
     if os.path.isfile(os.path.join(args.directory, args.filename)):

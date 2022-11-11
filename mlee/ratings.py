@@ -10,33 +10,38 @@ from mlee.unit_reformatting import CustomUnitReformater
 HIGHER_BETTER = [
     'general top1_val',
     'general top5_val',
+    'general f1_val',
+    'general precision_val',
+    'general recall_val'
 ]
+
+
 METRICS_INFO = {
-    'general parameters':     ('Parameters',                    'number',      lambda model_log, m_info: calc_parameters(model_log, m_info)),
-    'general flops':          ('Floating Point Operations',     'number',      lambda model_log, m_info: calc_flops(model_log, m_info)),
-    'general fsize':          ('Model File Size',               'bytes',       lambda model_log, m_info: calc_fsize(model_log, m_info)),
-    'general top1_val':       ('Top-1 Validation Accuracy',     'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info)),
-    'general top5_val':       ('Top-5 Validation Accuracy',     'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, top5=True)),
-    'inference power_draw':   ('Power Draw / Sample',  'wattseconds', lambda model_log, m_info: calc_power_draw(model_log, m_info)),
-    'inference time':         ('Time / Sample',        'seconds',     lambda model_log, m_info: calc_inf_time(model_log, m_info)),
-    # 'training power_draw_epoch': ('Training Power Draw per Epoch', 'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info, True)),
-    'training power_draw':       ('Total Power Draw',      'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info)),
-    # 'training time_epoch':       ('Training Time per Epoch',       'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info, True)),
-    'training time':             ('Total Time',            'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info))        
+    'general parameters':     ('Parameters',                'Complexity',      'number',      lambda model_log, m_info: calc_parameters(model_log, m_info)),
+    'general flops':          ('Floating Point Operations', 'Complexity',      'number',      lambda model_log, m_info: calc_flops(model_log, m_info)),
+    'general fsize':          ('Model File Size',           'Complexity',      'bytes',       lambda model_log, m_info: calc_fsize(model_log, m_info)),
+    'general top1_val':       ('Validation Top-1 Accuracy', 'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info)),
+    'general top5_val':       ('Validation Top-5 Accuracy', 'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='top_5_accuracy')),
+    'general f1_val':         ('Validation F1 Score',       'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='f1')),
+    'general precision_val':  ('Validation Precision',      'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='precision')),
+    'general recall_val':     ('Validation Recall',         'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='recall')),
+    'inference power_draw':   ('Power Draw',                'Resources',       'wattseconds', lambda model_log, m_info: calc_power_draw(model_log, m_info)),
+    'inference time':         ('Running Time',              'Resources',       'seconds',     lambda model_log, m_info: calc_inf_time(model_log, m_info)),
+    'training power_draw':    ('Power Draw',                'Resources',       'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info)),
+    'training time':          ('Running Time',              'Resources',       'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info))        
 }
 DEFAULT_REFERENCES = {
     'imagenet': 'ResNet101',
-    'olivetti_faces': 'SGD',
+    'olivetti_faces': 'Multilayer Perceptron',
     'lfw_people': 'Extra Random Forest',
-    '20newsgroups_vectorized': 'Random Forest',
-    'covtype': 'AdaBoost',
-    'lfw_pairs': 'Random Forest',
-    'kddcup99': 'Nearest',
-    'credit-g': 'Extra Random Forest',
-    'mnist_784': 'Random Forest',
-    'SpeedDating': 'Extra Random Forest',
-    'phoneme': 'SGD',
-    'blood-transfusion-service-center': 'SGD'
+    '20newsgroups_vectorized': 'AdaBoost',
+    'covtype': 'Ridge Regression',
+    'lfw_pairs': 'Extra Random Forest',
+    'credit-g': 'Support Vector Machine',
+    'mnist_784': 'Extra Random Forest',
+    'SpeedDating': 'Ridge Regression',
+    'phoneme': 'Multilayer Perceptron',
+    'blood-transfusion-service-center': 'Ridge Regression'
 }
 
 
@@ -120,9 +125,8 @@ def index_to_rating(index, scale):
     return 4 # worst rating if index does not fall in boundaries
 
 
-def calc_accuracy(res, model_info, train=False, top5=False):
+def calc_accuracy(res, model_info, train=False, metric='accuracy'):
     split = 'train' if train else 'validation'
-    metric = 'top_5_accuracy' if top5 else 'accuracy'
     return res[split]['results']['metrics'][metric] * 100
 
 
@@ -201,13 +205,16 @@ def characterize_monitoring(summary):
 
 def calculate_optimal_boundaries(summaries, quantiles):
     boundaries = {}
-    for task, sum_task in summaries.items():
-        for metric in METRICS_INFO[task].keys():
-            index_values = [ env_sum[metric]['index'] for env_sums in sum_task.values() for env_sum in env_sums if env_sum[metric]['index'] is not None ]
-            try:
-                boundaries[metric] = np.quantile(index_values, quantiles)
-            except Exception as e:
-                print(e)
+    for metric in METRICS_INFO.keys():
+        index_values = []
+        for sum_ds in summaries.values():
+            task = 'training' if 'training' in metric else 'inference'
+            for sum_env in sum_ds[task].values():
+                index_values += [ summary[metric]['index'] for summary in sum_env if metric in summary and summary[metric]['index'] is not None ]
+        try:
+            boundaries[metric] = np.quantile(index_values, quantiles)
+        except Exception as e:
+            print(e)
     return load_boundaries(boundaries)
 
 
@@ -331,9 +338,13 @@ def load_subresults(results_subdir, weighting):
                         'power_draw_sources': characterize_monitoring(model_log if 'monitoring_pynvml' in model_log else model_log['validation'])
                     }
                     # Calculate metrics for rating
-                    for metrics_key, (metric_name, unit, metrics_calculation) in METRICS_INFO.items():
+                    for metrics_key, (metric_name, metric_category, unit, metrics_calculation) in METRICS_INFO.items():
                         if metrics_key.split()[0] in ['general', task_type]:
-                            model_information[metrics_key] = {'name': metric_name, 'unit': unit, 'weight': weighting[metrics_key]}
+                            model_information[metrics_key] = {
+                                'name': metric_name,
+                                'unit': unit,
+                                'category': metric_category,
+                                'weight': weighting[metrics_key]}
                             try:
                                 try:
                                     value = metrics_calculation(model_log, model_information)
@@ -355,9 +366,10 @@ def load_subresults(results_subdir, weighting):
     return logs, summaries
 
 
-def rate_results(summaries, references=None, boundaries=None):
-    if references is None:
-        references = DEFAULT_REFERENCES
+def rate_results(summaries, boundaries=None, references_in=None):
+    references = DEFAULT_REFERENCES
+    if references_in is not None:
+        references.update(references_in)
     if boundaries is None:
         boundaries = load_boundaries()
 

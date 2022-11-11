@@ -65,6 +65,8 @@ def create_page(datasets):
                         {'label': 'Value Scale', 'value': 'real'}
                     ],
                 ),
+                html.H4('Reference Model'),
+                dbc.Select(id=f'select-reference'),
                 html.H4('Boundaries and Weights'),
                 dbc.Button("Calculate Optimal Boundaries", id="btn-calc-boundaries", active=False, style=style_btn_cfg),
                 dbc.Button("Save Current Boundaries", id="btn-save-boundaries", style=style_btn_cfg),

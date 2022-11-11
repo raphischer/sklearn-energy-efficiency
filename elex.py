@@ -12,7 +12,7 @@ from mlee.elex.pages import create_page
 from mlee.elex.util import summary_to_html_tables, toggle_element_visibility
 from mlee.elex.graphs import create_scatter_graph, create_bar_graph, add_rating_background
 from mlee.ratings import load_boundaries, save_boundaries, calculate_optimal_boundaries, save_weights, update_weights
-from mlee.ratings import load_results, rate_results, calculate_compound_rating, METRICS_INFO
+from mlee.ratings import load_results, rate_results, calculate_compound_rating, METRICS_INFO, DEFAULT_REFERENCES
 from mlee.label_generator import EnergyLabel
 from mlee.unit_reformatting import CustomUnitReformater
 
@@ -26,7 +26,7 @@ class Visualization(dash.Dash):
         super().__init__(__name__, **kwargs)
         self.dark_mode = 'external_stylesheets' in kwargs and 'darkly' in kwargs['external_stylesheets'][0] # TODO add other darkmode themes
         # init some values
-        self.dataset, self.task, self.xaxis, self.yaxis, self.rating_mode = 'olivetti_faces', 'inference', 'general top1_val', 'inference power_draw', 'optimistic median'
+        self.dataset, self.task, self.xaxis, self.yaxis, self.rating_mode = 'olivetti_faces', 'inference', 'general f1_val', 'inference power_draw', 'optimistic median'
         self.current = { 'summary': None, 'label': None, 'logs': None }
 
         self.logs, summaries = load_results(results_directory)
@@ -43,7 +43,7 @@ class Visualization(dash.Dash):
             for ds in self.datasets
         }
         rmt = CustomUnitReformater()
-        self.unit_symbols = { metr: rmt.get_unit_symbol(METRICS_INFO[metr][1]) for metr in set().union(*[set(m) for ds_m in list(self.metrics.values()) for m in ds_m.values()]) }
+        self.unit_symbols = { metr: rmt.get_unit_symbol(METRICS_INFO[metr][2]) for metr in set().union(*[set(m) for ds_m in list(self.metrics.values()) for m in ds_m.values()]) }
         
         # setup page and create callbacks
         self.layout = create_page(self.datasets)
@@ -56,7 +56,7 @@ class Visualization(dash.Dash):
             Input('ds-switch', 'value')
         ) (self.update_ds_changed)
         self.callback(
-            [Output('environments', 'options'), Output('environments', 'value'), Output('xaxis', 'options'), Output('xaxis', 'value'), Output('yaxis', 'options'),  Output('yaxis', 'value')],
+            [Output('environments', 'options'), Output('environments', 'value'), Output('xaxis', 'options'), Output('xaxis', 'value'), Output('yaxis', 'options'),  Output('yaxis', 'value'), Output('select-reference', 'options'), Output('select-reference', 'value')],
             Input('task-switch', 'value')
         ) (self.update_task_changed)
         self.callback(
@@ -65,7 +65,7 @@ class Visualization(dash.Dash):
         ) (self.update_boundary_sliders)
         self.callback(
             Output('graph-scatter', 'figure'),
-            [Input('environments', 'value'), Input('scale-switch', 'value'), Input('rating', 'value'), Input('x-weight', 'value'), Input('y-weight', 'value'), Input('boundary-slider-x', 'value'), Input('boundary-slider-y', 'value')]
+            [Input('environments', 'value'), Input('scale-switch', 'value'), Input('rating', 'value'), Input('x-weight', 'value'), Input('y-weight', 'value'), Input('select-reference', 'value'), Input('boundary-slider-x', 'value'), Input('boundary-slider-y', 'value')]
         ) (self.update_scatter_graph)
         self.callback(
             Output('graph-bars', 'figure'),
@@ -84,7 +84,7 @@ class Visualization(dash.Dash):
         self.callback(Output('label-modal', 'is_open'), Input('model-label', "n_clicks"), State('label-modal', 'is_open')) (toggle_element_visibility)
 
 
-    def update_scatter_graph(self, env_names=None, scale_switch=None, rating_mode=None, xweight=None, yweight=None, *slider_args):
+    def update_scatter_graph(self, env_names=None, scale_switch=None, rating_mode=None, xweight=None, yweight=None, reference=None, *slider_args):
         if xweight is not None and 'x-weight' in dash.callback_context.triggered[0]['prop_id']:
             self.summaries = update_weights(self.summaries, xweight, self.xaxis)
         if yweight is not None and 'y-weight' in dash.callback_context.triggered[0]['prop_id']:
@@ -94,6 +94,8 @@ class Visualization(dash.Dash):
         env_names = self.environments[self.task] if env_names is None else env_names
         scale_switch = 'index' if scale_switch is None else scale_switch
         self.rating_mode = self.rating_mode if rating_mode is None else rating_mode
+        if reference is not None:
+            self.summaries, self.boundaries, self.boundaries_real = rate_results(self.summaries, self.boundaries, {self.dataset : reference})
         self.plot_data = {}
         for env in env_names:
             env_data = { 'names': [], 'ratings': [], 'x': [], 'y': [] }
@@ -164,8 +166,10 @@ class Visualization(dash.Dash):
         avail_envs = [{"label": env, "value": env} for env in self.environments[self.task]]
         options = [{'label': METRICS_INFO[metr][0], 'value': metr} for metr in self.metrics[self.dataset][self.task]]
         self.xaxis = 'inference power_draw' if self.task == 'inference' else 'training power_draw'
-        self.yaxis = 'general top1_val'
-        return avail_envs, [avail_envs[0]['value']], options, self.xaxis, options, self.yaxis
+        self.yaxis = 'general f1_val'
+        models = [mod['name'] for mod in self.summaries[self.dataset][self.task][self.environments[self.task][0]]]
+        ref_options = [{'label': mod, 'value': mod} for mod in models]
+        return avail_envs, [avail_envs[0]['value']], options, self.xaxis, options, self.yaxis, ref_options, DEFAULT_REFERENCES[self.dataset]
 
     def display_model(self, hover_data=None, env_names=None, rating_mode=None):
         if hover_data is None:

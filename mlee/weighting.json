@@ -1,13 +1,17 @@
 {
     "general parameters": 0.4,
-    "general fsize": 0.4,
-    "general flops": 0.2,
-    "inference power_draw": 0.7,
-    "inference time": 0.3,
-    "general top1_val": 0.8,
+    "general flops": 0.3,
+    "general fsize": 0.3,
+
+    "general f1_val": 0.5,
+    "general top1_val": 0.3,
     "general top5_val": 0.2,
-    "training power_draw_epoch": 0.2,
-    "training power_draw": 0.7,
-    "training time_epoch": 0.2,
-    "training time": 0.3
+    "general precision_val": 0,
+    "general recall_val": 0,
+
+    "inference power_draw": 0.6,
+    "inference time": 0.4,
+
+    "training power_draw": 0.6,
+    "training time": 0.4
 }
