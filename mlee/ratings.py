@@ -20,16 +20,18 @@ METRICS_INFO = {
     'general parameters':     ('Parameters',                'Complexity',      'number',      lambda model_log, m_info: calc_parameters(model_log, m_info)),
     'general flops':          ('Floating Point Operations', 'Complexity',      'number',      lambda model_log, m_info: calc_flops(model_log, m_info)),
     'general fsize':          ('Model File Size',           'Complexity',      'bytes',       lambda model_log, m_info: calc_fsize(model_log, m_info)),
-    'general top1_val':       ('Validation Top-1 Accuracy', 'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info)),
-    'general top5_val':       ('Validation Top-5 Accuracy', 'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='top_5_accuracy')),
-    'general f1_val':         ('Validation F1 Score',       'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='f1')),
-    'general precision_val':  ('Validation Precision',      'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='precision')),
-    'general recall_val':     ('Validation Recall',         'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='recall')),
+    'general top1_val':       ('Test Top-1 Accuracy', 'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info)),
+    'general top5_val':       ('Test Top-5 Accuracy', 'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='top_5_accuracy')),
+    'general f1_val':         ('Test F1 Score',       'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='f1')),
+    'general precision_val':  ('Test Precision',      'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='precision')),
+    'general recall_val':     ('Test Recall',         'Quality',         'percent',     lambda model_log, m_info: calc_accuracy(model_log, m_info, metric='recall')),
     'inference power_draw':   ('Power Draw',                'Resources',       'wattseconds', lambda model_log, m_info: calc_power_draw(model_log, m_info)),
     'inference time':         ('Running Time',              'Resources',       'seconds',     lambda model_log, m_info: calc_inf_time(model_log, m_info)),
     'training power_draw':    ('Power Draw',                'Resources',       'wattseconds', lambda model_log, m_info: calc_power_draw_train(model_log, m_info)),
     'training time':          ('Running Time',              'Resources',       'seconds',     lambda model_log, m_info: calc_time_train(model_log, m_info))        
 }
+
+
 DEFAULT_REFERENCES = {
     'imagenet': 'ResNet101',
     'olivetti_faces': 'Multilayer Perceptron',

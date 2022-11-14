@@ -3,6 +3,7 @@ import plotly.graph_objects as go
 
 from mlee.ratings import calculate_compound_rating
 from mlee.elex.util import RATING_COLORS, ENV_SYMBOLS, PATTERNS
+from evaluate_hyperparams import classifiers
 
 
 def add_rating_background(fig, rating_pos, mode, dark_mode):
@@ -19,7 +20,7 @@ def create_scatter_graph(plot_data, axis_title, dark_mode, ax_border=0.1):
     fig = go.Figure()
     for env_i, (env_name, data) in enumerate(plot_data.items()):
         fig.add_trace(go.Scatter(
-            x=data['x'], y=data['y'], text=data['names'], name=env_name, 
+            x=data['x'], y=data['y'], text=[classifiers[name][0] for name in data['names']], name=env_name, 
             mode='markers+text', marker_symbol=ENV_SYMBOLS[env_i],
             legendgroup=env_name, marker=dict(color=[RATING_COLORS[r] for r in data['ratings']], size=15),
             marker_line=dict(width=3, color='black'))

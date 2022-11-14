@@ -28,6 +28,18 @@ RE = '#E52421'
 COLORS = [RA, RB, RC, RD, RE]
 ENVNAME = 'Xeon(R) W-2155 - Scikit-learn 1.1.2'
 CUR = CustomUnitReformater()
+SEL_DS = 'covtype'
+
+
+# DATA SHAPES
+
+ds_sizes = []
+for ds in app.datasets:
+    shapes = app.logs[ds]['inference'][ENVNAME][0]['validation']['results']['data']['shape']
+    shape = (shapes['train'][0] + shapes['test'][0], shapes['train'][1])
+    ds_sizes.append((shape[0], ds))
+    print(f'{ds:<35} - Shape {shape}')
+BIGGEST_DS = [ds for _, ds in reversed(sorted(ds_sizes))]
 
 
 # #####################################
@@ -78,7 +90,7 @@ TABLE_NAMES = {
             
 final_text = TEX_TABLE_INDEXING_RESULTS
 rows = []
-for ds in app.datasets:
+for ds in BIGGEST_DS:
     results = app.summaries[ds]['inference'][ENVNAME]
     res_ratings = [calculate_compound_rating(res, app.rating_mode) for res in results]
     res_acc = [res['general f1_val']['value'] if res_ratings[r_i] == min(res_ratings) else 0 for r_i, res in enumerate(results)]
@@ -100,7 +112,7 @@ for ds in app.datasets:
         model_res.extend([val, ind])
     final_text = final_text.replace('$VALIND', ' & '.join(val_ind_txt))
     rows.append(' & '.join(model_res) + r' \\')
-final_text = final_text.replace('$RES', '\n            '.join(rows))
+final_text = final_text.replace('$RES', '\n        '.join(rows))
 final_text = final_text.replace('%', '\%')
 final_text = final_text.replace('#', '\#')
 with open('table_best_models.tex', 'w') as outf:
@@ -108,6 +120,7 @@ with open('table_best_models.tex', 'w') as outf:
 
 
 # METRIC WEIGHTING TABLE
+
 table_str = r'''
 \begin{tabular}{l|c}
     \toprule 
@@ -154,30 +167,32 @@ os.remove("dummy.pdf")
 
 # SCATTER PLOTS
 
-app.dataset = 'credit-g'
+app.dataset = SEL_DS
 app.task = 'inference'
 app.xaxis = 'inference power_draw'
 app.yaxis = 'general f1_val'
 
 fig = app.update_scatter_graph()
-fig.update_layout(width=PLOT_WIDTH, height=350)
+fig.update_layout(xaxis_range=[0, 1.7])#, yaxis_range=[0.94, 1.035])
+fig.update_layout(width=PLOT_WIDTH * 2, height=300)
+fig.update_traces(textposition=f'middle right', textfont_size=18)
 fig.write_image('scatter index.pdf')
 
-fig = app.update_scatter_graph(scale_switch='value')
-fig.update_layout(width=PLOT_WIDTH, height=350)
-fig.write_image('scatter value.pdf')
+# fig = app.update_scatter_graph(scale_switch='value')
+# fig.update_layout(width=PLOT_WIDTH, height=350)
+# fig.write_image('scatter value.pdf')
 
 
 # EXAMPLARY LABELS
 
-for mod in app.summaries[app.dataset]['inference'][ENVNAME]:
+for mod in app.summaries[SEL_DS]['inference'][ENVNAME]:
     label = EnergyLabel(mod, app.rating_mode)
     label.save(f'label {mod["name"]}.pdf')
 
 
 # BAR PLOTS DATASETS
 
-for d_i, ds in enumerate(app.datasets):
+for d_i, ds in enumerate(BIGGEST_DS):
     app.dataset = ds
     app.update_scatter_graph()
     fig = app.update_bars_graph(discard_y_axis=True)
