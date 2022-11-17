@@ -12,10 +12,10 @@ qrcode
 pint
 
 # Monitoring
-pypapi # dont forget apt install papi-tools
+pypapi # dont forget to also apt install papi-tools
 pynvml
 psutil
-pyrapl # (clone https://github.com/powerapi-ng/pyRAPL and install locally)
+pyrapl # (better clone https://github.com/powerapi-ng/pyRAPL and install locally)
 
 # paper result generation
 kaleido

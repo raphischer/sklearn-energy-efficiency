@@ -1,0 +1,20 @@
+
+\begin{tabular}{l|c}
+    \toprule 
+    Metric & Weight \\
+    \midrule
+    \tikzmark{0}Parameters & 0.4\\
+    \tikzmark{1}Model File Size & 0.3\\
+    \tikzmark{2}Floating Point Operations & 0.3\\
+    \tikzmark{3}Test F1 Score & 0.5\\
+    \tikzmark{4}Test Top-1 Accuracy & 0.3\\
+    \tikzmark{5}Test Top-5 Accuracy & 0.2\\
+    \tikzmark{6}Power Draw & 0.6\\
+    \tikzmark{7}Running Time & 0.4\\
+    \bottomrule
+\end{tabular}
+\begin{tikzpicture}[remember picture, overlay]
+    \draw[brace mirrored, thick] ($(pic cs:0) + (-3pt, 6pt)$)--($(pic cs:2) + (-3pt, 0)$) node [midway, left] {Complexity};
+    \draw[brace mirrored, thick] ($(pic cs:3) + (-3pt, 6pt)$)--($(pic cs:5) + (-3pt, 0)$) node [midway, left] {Quality};
+    \draw[brace mirrored, thick] ($(pic cs:6) + (-3pt, 6pt)$)--($(pic cs:7) + (-3pt, 0)$) node [midway, left] {Resources};
+\end{tikzpicture}
