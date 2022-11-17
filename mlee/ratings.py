@@ -315,8 +315,6 @@ def load_subresults(results_subdir, weighting):
                 logs[dataset][task_type][env_key] = {}
             if log['config']['model'] in logs[dataset][task_type][env_key]:
                 raise NotImplementedError(f'Already found results for {log["config"]["model"]} on {env_key}, averaging runs is not implemented (yet)!')
-            if 'dataset' not in log['config']: # TODO remove later (when ImageNet results have been rerun)
-                log['config']['dataset'] = 'imagenet'
             logs[dataset][task_type][env_key][log['config']['model']] = log
 
     # Exctract all relevant metadata

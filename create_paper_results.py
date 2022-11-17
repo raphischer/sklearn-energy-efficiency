@@ -93,7 +93,7 @@ rows = []
 for ds in BIGGEST_DS:
     results = app.summaries[ds]['inference'][ENVNAME]
     res_ratings = [calculate_compound_rating(res, app.rating_mode) for res in results]
-    res_acc = [res['general f1_val']['value'] if res_ratings[r_i] == min(res_ratings) else 0 for r_i, res in enumerate(results)]
+    res_acc = [res['inference power_draw']['index'] if res_ratings[r_i] == min(res_ratings) else 0 for r_i, res in enumerate(results)]
     best_mod_ind = np.argsort(res_acc)[-1]
     best_mod, rating = results[best_mod_ind], res_ratings[best_mod_ind]
 

@@ -17,9 +17,6 @@ from mlee.label_generator import EnergyLabel
 from mlee.unit_reformatting import CustomUnitReformater
 
 
-# TODO make reference model selection available in Elex
-
-
 class Visualization(dash.Dash):
 
     def __init__(self, results_directory, **kwargs):
