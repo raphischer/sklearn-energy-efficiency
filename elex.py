@@ -223,4 +223,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     app = Visualization(args.directory, external_stylesheets=[dbc.themes.DARKLY])
-    app.run_server(debug=True, host=args.host, port=args.port)# , host='0.0.0.0', port=8888)
+    app.run_server(debug=args.debug, host=args.host, port=args.port)# , host='0.0.0.0', port=8888)
