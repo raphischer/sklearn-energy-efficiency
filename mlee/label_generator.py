@@ -115,7 +115,7 @@ class EnergyLabel(fitz.Document):
         # Final Rating & QR
         canvas.drawInlineImage(os.path.join(PARTS_DIR, f"Rating_{frate}.png"), POS_RATINGS[frate][0] * C_SIZE[0], POS_RATINGS[frate][1] * C_SIZE[1])
         qr = create_qr(summary['model_info']['url'])
-        draw_qr(canvas, qr, 0.825 * C_SIZE[0], 0.894 * C_SIZE[1], 200)
+        draw_qr(canvas, qr, 0.84 * C_SIZE[0], 0.896 * C_SIZE[1], 175)
         # Add stroke to make even bigger letters
         canvas.setFillColor(black)
         canvas.setLineWidth(3)
