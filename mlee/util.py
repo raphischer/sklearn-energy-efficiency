@@ -6,6 +6,7 @@ import sys
 import pkg_resources
 
 import numpy as np
+import pandas as pd
 
 from mlee.monitoring import log_system_info
 
@@ -24,6 +25,8 @@ class PatchedJSONEncoder(json.JSONEncoder):
             return int(obj)
         if isinstance(obj, np.ndarray):
             return obj.tolist()
+        if isinstance(obj, pd.DataFrame):
+            return obj.to_json()
         return json.JSONEncoder.default(self, obj)
 
 
